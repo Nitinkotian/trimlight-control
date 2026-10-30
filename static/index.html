@@ -1,0 +1,2092 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trimlight Control</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f2f4f7; --border: #e4e7ec; --border-strong: #d0d5dd;
+    --text: #101828; --muted: #667085; --accent: #6941c6; --accent-hover: #53389e; --accent-soft: #f4ebff;
+    --ok: #079455; --err: #d92d20; --err-soft: #fef3f2; --warn: #dc6803; --warn-soft: #fffaeb;
+    --radius: 12px; --shadow: 0 1px 2px rgba(16, 24, 40, .05); --shadow-lg: 0 12px 32px -4px rgba(16, 24, 40, .14);
+    --header-h: 60px; --tabbar-h: 64px; --sidebar-w: 224px;
+    --nav-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c111d; --surface: #161b26; --surface-2: #1f242f; --border: #2a303c; --border-strong: #373e4c;
+      --text: #f5f5f6; --muted: #94969c; --accent: #9e77ed; --accent-hover: #b692f6; --accent-soft: rgba(158, 119, 237, .14);
+      --ok: #47cd89; --err: #f97066; --err-soft: rgba(249, 112, 102, .12); --warn: #fdb022; --warn-soft: rgba(253, 176, 34, .12);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 16px 40px rgba(0, 0, 0, .5);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; padding-bottom: calc(var(--nav-bottom) + 16px); }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+
+  /* Header */
+  header { position: sticky; top: 0; z-index: 7; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .hdr { height: var(--header-h); padding: 0 20px; display: flex; gap: 12px; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+  .brand .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+  .brand .logo svg { width: 18px; height: 18px; }
+  .brand small { color: var(--muted); font-weight: 500; font-size: 13px; }
+  #device { width: auto; max-width: 220px; min-height: 36px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted);
+          padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
+  .seg button:hover { color: var(--text); }
+  .seg button.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+
+  /* Layout */
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 20px; }
+  .panel { display: none; }
+  .panel.active { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  .page-head h1 { font-size: 22px; line-height: 1.25; margin: 0; font-weight: 650; letter-spacing: -.02em; }
+  .page-head p { margin: 4px 0 0; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 15px; margin: 0; font-weight: 600; }
+  .card-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .card-head > div { flex: 1; min-width: 0; }
+  .card-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  label { display: block; font-size: 13px; font-weight: 550; color: var(--text); margin: 16px 0 6px; }
+  label .sub { font-weight: 400; color: var(--muted); }
+  select, input[type=number], input[type=text], input[type=password], input[type=time] {
+    width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface);
+    min-height: 40px; box-shadow: var(--shadow); }
+  select:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  select[size] { padding: 4px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row > .grow { flex: 1; min-width: 120px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+  .val-label { float: right; color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+  button.btn, a.btn { border-radius: 8px; padding: 8px 14px; min-height: 38px; cursor: pointer; font-weight: 600; font-size: 14px;
+               border: 1px solid var(--border-strong); background: var(--surface); box-shadow: var(--shadow); white-space: nowrap; }
+  button.btn:hover, a.btn:hover { background: var(--surface-2); }
+  a.btn { color: var(--text); text-decoration: none; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button.danger { color: var(--err); }
+  button.danger:hover { background: var(--err-soft); }
+  button.sm { min-height: 32px; padding: 5px 10px; font-size: 13px; }
+  button:disabled { opacity: .5; cursor: progress; }
+  .icon-btn { border: 0; background: none; cursor: pointer; padding: 8px; border-radius: 8px; color: var(--muted); line-height: 0; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .icon-btn.danger:hover { color: var(--err); background: var(--err-soft); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .callout { border-radius: 10px; padding: 12px 14px; font-size: 13px; background: var(--warn-soft); color: var(--text);
+             border: 1px solid var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+  .callout strong { color: var(--warn); }
+
+  /* Key/value lists */
+  .kv { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); margin: 0; }
+  .kv dt, .kv dd { margin: 0; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .kv dt { color: var(--muted); }
+  .kv dd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+  .kv > :nth-last-child(-n+2) { border-bottom: 0; }
+  .kv dd input[type=text] { flex: 1; min-width: 140px; width: auto; }
+  .tag { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+  .tag.ok { color: var(--ok); background: var(--surface-2); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .tag.warn { color: var(--warn); background: var(--warn-soft); }
+
+  /* Swatches */
+  .swatches { display: inline-flex; gap: 3px; flex-wrap: wrap; vertical-align: middle; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(127,127,127,.35); }
+
+  /* Library */
+  .lib-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .search { position: relative; flex: 1; min-width: 200px; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+  .search input { padding-left: 34px; }
+  .chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 99px;
+                  padding: 5px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .chips button:hover { color: var(--text); border-color: var(--border-strong); }
+  .chips button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .lib-count { color: var(--muted); font-size: 13px; margin-left: auto; white-space: nowrap; }
+  .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .pcard { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+           box-shadow: var(--shadow); transition: border-color .15s, box-shadow .15s, transform .15s; display: flex; flex-direction: column; }
+  .pcard:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+  .pcard.picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+  .pstrip { position: relative; display: flex; height: 76px; border: 0; padding: 0; margin: 0; cursor: pointer; overflow: hidden;
+            background: #05070b; width: 100%; }
+  .pstrip .half { flex: 1; background-repeat: repeat-x; background-size: var(--w) 100%; animation-duration: var(--dur);
+                  animation-timing-function: linear; animation-iteration-count: infinite; animation-play-state: paused; }
+  .pstrip::after { content: ""; position: absolute; inset: 0; pointer-events: none;   /* soft LED glow + bulb row */
+                   background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.13) 0 1.2px, transparent 2px) 0 50% / 8px 8px repeat-x,
+                               linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,.55)); }
+  .pcard:hover .half, .pcard.playing .half, .rot-tile .half { animation-play-state: running; }
+  .a-r { animation-name: slide-r; } .a-l { animation-name: slide-l; }
+  .a-twinkle { animation-name: twinkle; animation-timing-function: steps(6) !important; }
+  .a-breath { animation-name: breath; animation-timing-function: ease-in-out !important; }
+  .a-strobe { animation-name: strobe; animation-timing-function: steps(1) !important; }
+  .a-flow { animation-name: slide-r; }
+  @keyframes slide-r { from { background-position-x: 0; } to { background-position-x: var(--w); } }
+  @keyframes slide-l { from { background-position-x: var(--w); } to { background-position-x: 0; } }
+  @keyframes twinkle { 0%,100% { filter: brightness(1); } 33% { filter: brightness(.45); } 66% { filter: brightness(1.35); } }
+  @keyframes breath { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+  @keyframes strobe { 0%,100% { opacity: 1; } 50% { opacity: .08; } }
+  @media (prefers-reduced-motion: reduce) { .pstrip .half { animation: none !important; } }
+  .play-hint { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity .15s; z-index: 1; }
+  .play-hint span { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600;
+                    padding: 5px 11px; border-radius: 99px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .pstrip:hover .play-hint, .pstrip:focus-visible .play-hint { opacity: 1; }
+  .pickbtn { position: absolute; top: 8px; left: 8px; z-index: 2; width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+             border: 1.5px solid rgba(255,255,255,.85); background: rgba(0,0,0,.35); color: #fff; font-size: 13px; font-weight: 700;
+             display: grid; place-items: center; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); padding: 0; opacity: 0; transition: opacity .15s; }
+  .pcard:hover .pickbtn, .pickbtn:focus-visible, .pcard.picked .pickbtn, .lib-grid.touch .pickbtn { opacity: 1; }
+  .pcard.picked .pickbtn { background: var(--accent); border-color: var(--accent); }
+  .fx-badge { position: absolute; top: 8px; right: 8px; z-index: 2; font-size: 11px; font-weight: 700; color: #fff; padding: 3px 8px;
+              border-radius: 99px; background: rgba(0,0,0,.5); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); pointer-events: none; }
+  .pbody { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .pname { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pmeta { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ptags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; min-height: 0; }
+  .ptags:empty { display: none; }
+  .tag.live { color: var(--ok); background: var(--surface-2); background: color-mix(in srgb, var(--ok) 12%, transparent); display: inline-flex; align-items: center; gap: 5px; }
+  .tag.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  .tag.acc { color: var(--accent); background: var(--accent-soft); }
+  .pfoot { display: flex; align-items: center; gap: 2px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .pfoot .ov { margin-right: auto; }
+  .pfoot .icon-btn { padding: 6px; }
+  .pfoot .icon-btn svg { width: 16px; height: 16px; }
+  select.ov { width: auto; min-height: 28px; padding: 2px 8px; font-size: 12px; border-radius: 7px; box-shadow: none; }
+
+  /* Rotation */
+  .rot-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+  .rot-tile { position: relative; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); min-width: 0; }
+  .rot-tile .pstrip { height: 40px; cursor: default; }
+  .rot-tile .pstrip::after { background-size: 6px 6px, auto; }
+  .rot-tile .meta { padding: 7px 9px; display: flex; gap: 6px; align-items: center; min-width: 0; }
+  .rot-tile .num { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .rot-tile .nm { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .rot-tile .x { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 15px; line-height: 1; }
+  .rot-tile .x:hover { color: var(--err); }
+  .rot-tile.empty { display: grid; place-items: center; min-height: 72px; border-style: dashed; color: var(--muted); font-size: 12px; background: none; text-align: center; padding: 6px; }
+  .rot-ctl { display: flex; align-items: center; gap: 8px; flex: none; white-space: nowrap; }
+  .rot-ctl input { width: 70px; min-height: 34px; padding: 4px 8px; }
+  .rotation-bar { position: sticky; bottom: calc(var(--nav-bottom) + 12px); z-index: 3;
+                  display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: var(--radius);
+                  background: var(--text); color: var(--bg); box-shadow: var(--shadow-lg); flex-wrap: wrap; }
+  .rotation-bar[hidden] { display: none; }
+  .rotation-bar .count { font-weight: 600; flex: 1; min-width: 160px; }
+  .rotation-bar button { border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 600; cursor: pointer; }
+  .rotation-bar .ghost { background: transparent; color: var(--bg); opacity: .8; }
+  .rotation-bar .ghost:hover { opacity: 1; }
+  .rotation-bar .go { background: var(--accent); color: #fff; }
+  .rotation-bar .go:hover { background: var(--accent-hover); }
+  @media (max-width: 640px) {
+    .rot-tiles { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .lib-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .pstrip { height: 60px; }
+    .pfoot .ov { max-width: 100%; }
+    .lib-count { margin-left: 0; }
+  }
+
+  .toggle { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 16px 0 0; cursor: pointer; }
+  .toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  /* Colors: pattern editor */
+  /* Colors: pattern sidebar + editor */
+  .colors-layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .pmain { display: grid; gap: 16px; min-width: 0; }
+  .pside { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+           display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .pside-head { display: flex; align-items: center; gap: 6px; padding: 14px 14px 10px; }
+  .pside-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 650; }
+  .pside-head .count { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 4px; }
+  .pside-head .icon-btn[aria-pressed=true] { color: var(--accent); background: var(--accent-soft); }
+  .pside > .search { margin: 0 14px; flex: none; }
+  .pside > .search input { min-height: 36px; }
+  .pside-tools { display: flex; gap: 6px; padding: 8px 14px 10px; border-bottom: 1px solid var(--border); }
+  .pside-tools select { min-height: 32px; padding: 4px 8px; font-size: 13px; box-shadow: none; flex: 1; min-width: 0; }
+  .pside-tools .icon-btn { flex: none; }
+  .plist { overflow-y: auto; padding: 6px; max-height: 320px; overscroll-behavior: contain; }
+  .pgroup { position: sticky; top: -6px; z-index: 1; display: flex; align-items: center; gap: 6px; width: 100%; border: 0; cursor: pointer;
+            background: var(--surface); padding: 10px 8px 6px; font-size: 12px; font-weight: 650; color: var(--muted); text-align: left; }
+  .pgroup:hover { color: var(--text); }
+  .pgroup .chev { width: 12px; transition: transform .15s; }
+  .pgroup.closed .chev { transform: rotate(-90deg); }
+  .pgroup .n { margin-left: auto; font-weight: 500; }
+  .prow { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 9px; cursor: pointer; }
+  .prow:hover { background: var(--surface-2); }
+  .prow.on { background: var(--accent-soft); }
+  .prow.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--accent); }
+  .prow .sq { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(127,127,127,.3); }
+  .prow .txt { flex: 1; min-width: 0; }
+  .prow .nm { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prow .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prow .more { flex: none; opacity: 0; padding: 4px; }
+  .prow:hover .more, .prow .more:focus-visible, .prow.on .more { opacity: 1; }
+  @media (hover: none) { .prow .more { opacity: .7; } }
+  .prow .cb { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; flex: none; }
+  .plist .empty { margin: 10px 4px; }
+  .pside-bulk { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  .pside-bulk span { flex: 1; font-size: 13px; font-weight: 600; }
+  @media (min-width: 960px) {
+    main.wide { max-width: 1320px; }
+    .colors-layout { grid-template-columns: 300px minmax(0, 1fr); }
+    .pside { position: sticky; top: calc(var(--header-h) + 16px); height: calc(100vh - var(--header-h) - 32px); }
+    .plist { flex: 1; max-height: none; }
+  }
+
+  /* Festivals */
+  .fpill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 99px; padding: 2px 10px 2px 7px;
+           font-size: 12.5px; font-weight: 600; cursor: pointer; background: none; white-space: nowrap; }
+  .fpill:hover { border-color: var(--border-strong); }
+  .fpill i { width: 8px; height: 8px; border-radius: 50%; }
+  .fpill.none { color: var(--muted); font-weight: 500; }
+  .fmenu { position: fixed; z-index: 30; min-width: 220px; max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border);
+           border-radius: 12px; box-shadow: var(--shadow-lg); padding: 6px; }
+  .fmenu button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .fmenu button:hover { background: var(--surface-2); }
+  .fmenu button.cur { font-weight: 650; }
+  .fmenu button.cur::after { content: "✓"; margin-left: auto; color: var(--accent); }
+  .fmenu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 4px; }
+  .fmenu .add { color: var(--accent); font-weight: 600; }
+  .switch.sm { width: 34px; height: 20px; }
+  .switch.sm::after { width: 16px; height: 16px; }
+  .switch.sm:checked::after { left: 16px; }
+  .emoji-pick, .color-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .emoji-pick button { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); font-size: 18px; cursor: pointer; }
+  .emoji-pick button.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .color-pick button { width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer; padding: 0; }
+  .color-pick button.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .fest-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .fest-row:last-child { border-bottom: 0; }
+  .fest-row .grow { flex: 1; min-width: 0; }
+
+  .eyebrow { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  input.title-input { font-size: 26px; font-weight: 700; letter-spacing: -.02em; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+                      background: none; padding: 2px 0; width: 100%; min-height: 0; box-shadow: none; }
+  input.title-input:hover { border-bottom-color: var(--border); }
+  input.title-input:focus { border-bottom-color: var(--accent); box-shadow: none; }
+  .pstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+  .pstatus i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .pstatus.dirty { color: var(--accent); } .pstatus.dirty i { background: var(--accent); }
+  .pstatus.new i { background: var(--muted); }
+  .editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (min-width: 1440px) {
+    .editor { grid-template-columns: minmax(0, 1fr) 340px; }
+    .editor .stage { position: sticky; top: calc(var(--header-h) + 16px); }
+  }
+  .ecard { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .sec { padding: 16px 18px; }
+  .sec + .sec { border-top: 1px solid var(--border); }
+  .sec h3 { margin: 0 0 12px; font-size: 13px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+  .sec h3 .aside { margin-left: auto; font-weight: 500; color: var(--muted); font-size: 12px; }
+  .scene { position: relative; aspect-ratio: 16 / 8.2; background: radial-gradient(120% 90% at 50% 0%, #1b2040 0%, #0a0d1a 60%, #05060c 100%); }
+  .scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .scene .badge { position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 700; color: #fff; letter-spacing: .04em;
+                  background: rgba(255,255,255,.12); padding: 4px 9px; border-radius: 99px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .scene .mode-tag { position: absolute; top: 12px; right: 12px; font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.35);
+                     padding: 4px 10px; border-radius: 99px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .seq { display: flex; height: 44px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #000; }
+  .seg-b { position: relative; border: 0; padding: 0; cursor: pointer; min-width: 22px; }
+  .seg-b:hover { filter: brightness(1.12); }
+  .seg-b + .seg-b { box-shadow: inset 1px 0 0 rgba(0,0,0,.35); }
+  .seg-b.sel { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 1; }
+  .seg-b em { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+  .slot-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+  .slot-row { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; }
+  .slot-row:hover { background: var(--surface-2); }
+  .slot-row.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .slot-row .sw2 { width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(127,127,127,.35); flex: none; }
+  .slot-row .hex { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--muted); flex: 1; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .stepper button { border: 0; background: none; width: 28px; height: 28px; cursor: pointer; font-size: 15px; color: var(--muted); }
+  .stepper button:hover { background: var(--surface-2); color: var(--text); }
+  .stepper input { width: 38px; min-height: 0; border: 0; padding: 0; text-align: center; background: none; font-weight: 600; font-size: 13px; box-shadow: none; -moz-appearance: textfield; }
+  .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .stepper small { font-size: 11px; color: var(--muted); padding-right: 8px; }
+  .add-slot { margin-top: 6px; width: 100%; border: 1.5px dashed var(--border-strong); background: none; border-radius: 10px; padding: 8px; color: var(--accent); font-weight: 600; cursor: pointer; }
+  .add-slot:hover { background: var(--accent-soft); }
+  .palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+  .swatch { aspect-ratio: 1; border-radius: 9px; border: 1px solid rgba(127,127,127,.3); cursor: pointer; padding: 0; margin: 0; position: relative; transition: transform .1s; }
+  .swatch:hover { transform: scale(1.08); }
+  .swatch.on::after { content: ""; position: absolute; inset: -4px; border: 2px solid var(--accent); border-radius: 12px; }
+  .swatch.picker { background: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); overflow: hidden; display: block; }
+  .swatch.picker input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .pal-label { font-size: 11px; font-weight: 600; color: var(--muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: ""; position: absolute; right: 14px; top: 50%; width: 7px; height: 7px; margin-top: -5px; pointer-events: none;
+                        border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); }
+  .select-wrap select { -webkit-appearance: none; appearance: none; padding-right: 36px; font-weight: 600; cursor: pointer; }
+  .motion-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  .motion-note:empty { display: none; }
+  .slider { margin-bottom: 14px; }
+  .slider:last-child { margin-bottom: 0; }
+  .slider .lab { display: flex; justify-content: space-between; font-size: 13px; font-weight: 550; margin-bottom: 6px; }
+  .slider .lab b { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .slider input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px; outline: none;
+                              background: linear-gradient(90deg, var(--accent) var(--p, 50%), var(--border) var(--p, 50%)); }
+  .slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+                                                    border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; }
+  .overlays { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .ovl { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 9px 6px; cursor: pointer; text-align: center;
+         font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .ovl span { display: block; font-size: 18px; margin-bottom: 2px; }
+  .ovl:hover { border-color: var(--border-strong); color: var(--text); }
+  .ovl.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .actionbar { position: sticky; bottom: calc(var(--nav-bottom) + 12px); z-index: 4; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+               padding: 10px 12px 10px 16px; background: var(--surface); background: color-mix(in srgb, var(--surface) 90%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+               border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); }
+  .actionbar .msg { flex: 1; min-width: 160px; font-size: 13px; color: var(--muted); }
+  .actionbar .msg b { color: var(--text); }
+  button.ghost { border-color: transparent; background: none; box-shadow: none; color: var(--muted); }
+  button.ghost:hover { color: var(--text); background: var(--surface-2); }
+  button.ghost.danger { color: var(--err); }
+  button.ghost.danger:hover { background: var(--err-soft); color: var(--err); }
+  @media (max-width: 640px) {
+    .actionbar { padding: 8px; gap: 6px; }
+    .actionbar .msg { display: none; }  /* the status under the name already says it */
+    .actionbar .btn { flex: 1 1 40%; min-height: 36px; padding: 6px 8px; font-size: 13px; }
+    .palette { grid-template-columns: repeat(7, 1fr); }
+    .scene { aspect-ratio: 16 / 10; }
+    input.title-input { font-size: 22px; }
+  }
+
+  /* Schedule menu & sheets */
+  .menu { display: flex; flex-direction: column; margin: 0 -8px; }
+  .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0;
+               border-radius: 8px; padding: 12px 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+  .menu-item:hover { background: var(--surface-2); }
+  .menu-item .val { margin-left: auto; color: var(--muted); font-weight: 400; text-align: right; }
+  .menu-item .chev { color: var(--muted); font-size: 20px; line-height: 1; }
+  .menu-item.create { color: var(--accent); font-weight: 600; }
+  .menu-head { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 8px 4px; }
+  dialog#sheet { border: 1px solid var(--border); padding: 0; border-radius: 16px; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 24px);
+                 background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); }
+  dialog#sheet::backdrop { background: rgba(12, 17, 29, .55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+  @media (max-width: 560px) { dialog#sheet { margin: auto auto 12px; } }
+  .sheet-body { padding: 16px 20px 20px; }
+  .sheet-top { display: flex; justify-content: space-between; align-items: center; min-height: 32px; }
+  .sheet-title { margin: 4px 0 8px; font-size: 17px; font-weight: 650; text-align: center; }
+  .link { background: none; border: 0; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 14px; padding: 6px 0; }
+  .field { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); min-height: 54px; }
+  .field > :first-child { flex: 1; margin: 0; font-size: 14px; font-weight: 500; color: var(--text); }
+  .field select, .field input[type=time] { width: auto; max-width: 62%; }
+  .date-btn { background: none; border: 0; cursor: pointer; color: var(--muted); font-size: 14px; padding: 8px 0; }
+  .switch { appearance: none; -webkit-appearance: none; width: 44px; height: 24px; border-radius: 99px; background: var(--border-strong);
+            position: relative; cursor: pointer; transition: background .15s; flex: none; margin: 0; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+                   background: #fff; transition: left .15s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .switch:checked { background: var(--accent); }
+  .switch:checked::after { left: 22px; }
+  .grid-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+  .grid-pick.days { grid-template-columns: repeat(7, 1fr); }
+  .grid-pick button { background: none; border: 0; border-radius: 10px; padding: 16px 0; font-size: 20px; font-weight: 600; cursor: pointer; }
+  .grid-pick.days button { padding: 10px 0; font-size: 14px; }
+  .grid-pick button:hover { background: var(--surface-2); }
+  .grid-pick button.on { background: var(--accent); color: #fff; }
+  .sheet-actions { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+  .sheet-actions .spacer { flex: 1; }
+  .checks { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .checks label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 0; font-weight: 500; }
+  .checks input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  /* Device tab */
+  details.adv summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.adv summary::-webkit-details-marker { display: none; }
+  details.adv summary::after { content: "›"; margin-left: auto; font-size: 20px; color: var(--muted); transition: transform .15s; }
+  details.adv[open] summary::after { transform: rotate(90deg); }
+  table.ports { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table.ports th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 8px 6px 0; }
+  table.ports td { padding: 4px 8px 4px 0; }
+  table.ports td:first-child { font-weight: 550; white-space: nowrap; }
+  .group-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .group-row:last-child { border-bottom: 0; }
+  .empty { text-align: center; padding: 18px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; color: var(--muted); }
+
+  /* Home */
+  .hero { position: relative; overflow: hidden; border-radius: 18px; padding: 36px 32px 30px; color: #fff;
+          background: radial-gradient(120% 120% at 15% 0%, #2b2363 0%, #12142b 55%, #090b16 100%); box-shadow: var(--shadow-lg); }
+  .hero h1 { margin: 0; font-size: 32px; line-height: 1.15; font-weight: 750; letter-spacing: -.03em; max-width: 560px; }
+  .hero p { margin: 10px 0 0; color: rgba(255,255,255,.72); font-size: 15px; max-width: 560px; }
+  .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; position: relative; z-index: 1; }
+  .hero .btn { box-shadow: none; }
+  .hero .btn.light { background: #fff; border-color: #fff; color: #101828; }
+  .hero .btn.light:hover { background: #f2f4f7; }
+  .hero .btn.glass { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.25); color: #fff; }
+  .hero .btn.glass:hover { background: rgba(255,255,255,.18); }
+  .hero .eyebrow { color: #c4b5fd; margin-bottom: 10px; }
+  .leds { display: flex; gap: 10px; margin-top: 30px; position: relative; z-index: 1; overflow: hidden; padding: 6px 4px; }
+  .leds i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px 2px var(--c);
+            animation: led 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -.12s); }
+  @keyframes led { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .leds i { animation: none; } }
+  .home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .stat { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .stat:last-child { border-bottom: 0; }
+  .stat span { color: var(--muted); }
+  .stat b { font-weight: 600; text-align: right; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .tile { text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 14px; cursor: pointer;
+          box-shadow: var(--shadow); transition: border-color .15s, transform .15s; }
+  .tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .tile svg { width: 22px; height: 22px; color: var(--accent); }
+  .tile b { display: block; margin-top: 8px; font-size: 14px; }
+  .tile span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .steps { counter-reset: step; display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .steps > li { counter-increment: step; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .steps > li:last-child { border-bottom: 0; }
+  .steps > li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+                        background: var(--accent-soft); color: var(--accent); }
+  .steps h3 { margin: 4px 0 2px; font-size: 15px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .secret-wrap { position: relative; }
+  .secret-wrap input { padding-right: 64px; }
+  .secret-wrap button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 6px; }
+  .setup-ok { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 10px; margin-top: 12px;
+              background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--text); }
+  .setup-ok[hidden] { display: none; }
+  .fine { font-size: 12px; color: var(--muted); margin: 0; }
+  .fine a { color: var(--accent); }
+  .acct-result { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+  .acct-result.ok { background: var(--surface-2); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .acct-result.bad { background: var(--err-soft); color: var(--err); }
+  nav.tabs button[aria-disabled=true] { opacity: .4; }
+  @media (max-width: 640px) { .hero { padding: 26px 20px 22px; } .hero h1 { font-size: 25px; } }
+
+  /* Navigation: bottom tab bar on phones, sidebar on wide screens */
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface);
+             border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+  nav.tabs .inner { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, 1fr); height: var(--tabbar-h); }
+  nav.tabs button { border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+                    justify-content: center; gap: 3px; color: var(--muted); font-size: 11px; font-weight: 600; position: relative; }
+  nav.tabs svg { width: 22px; height: 22px; flex: none; }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button[aria-selected=true] { color: var(--accent); }
+  @media (min-width: 960px) {
+    :root { --nav-bottom: 0px; }
+    nav.tabs { top: var(--header-h); right: auto; width: var(--sidebar-w); border-top: 0; border-right: 1px solid var(--border); padding: 16px 12px; }
+    nav.tabs .inner { display: flex; flex-direction: column; gap: 2px; height: auto; max-width: none; }
+    nav.tabs button { flex-direction: row; justify-content: flex-start; gap: 10px; font-size: 14px; padding: 9px 12px; border-radius: 8px; }
+    nav.tabs button:hover { background: var(--surface-2); }
+    nav.tabs button[aria-selected=true] { background: var(--accent-soft); }
+    nav.tabs svg { width: 20px; height: 20px; }
+    main { margin-left: max(var(--sidebar-w), calc((100% - 1040px) / 2)); padding: 32px 32px 40px; }
+    main.wide { margin-left: max(var(--sidebar-w), calc((100% - 1320px) / 2)); }
+  }
+
+  #toast { position: fixed; left: 50%; bottom: calc(var(--nav-bottom) + 20px); transform: translateX(-50%); padding: 10px 16px; z-index: 9;
+           border-radius: 10px; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-lg);
+           opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  #toast.show { opacity: 1; }
+  #toast.err { background: var(--err); color: #fff; }
+  @media (max-width: 640px) {
+    .hdr { padding: 0 12px; gap: 8px; }
+    .brand .name, .pill .st-text { display: none; }
+    .brand { flex: none; }
+    #device { flex: 1; min-width: 0; max-width: none; }
+    .pill { padding: 6px; }
+    .seg button { padding: 5px 8px; }
+    main { padding: 16px 12px; }
+    .card { padding: 16px 14px; }
+    .grid-2 { grid-template-columns: minmax(0, 1fr); }
+    .kv { grid-template-columns: minmax(0, 1fr); }
+    .kv dt { border-bottom: 0; padding-bottom: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg></span>
+      <span class="name">Trimlight <small>Control</small></span>
+    </div>
+    <select id="device" aria-label="Controller"></select>
+    <span class="pill" id="status"></span>
+    <div class="seg" role="group" aria-label="Power">
+      <button data-state="1">On</button><button data-state="0">Off</button><button data-state="2" title="Hand control back to your schedules">Schedule</button>
+    </div>
+    <button class="icon-btn" id="reload" title="Ask the controller for fresh data" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- Home -->
+  <section class="panel" id="tab-home" role="tabpanel">
+    <div class="hero">
+      <div class="eyebrow">Trimlight Edge · local control</div>
+      <h1>Your permanent lights, designed on your computer.</h1>
+      <p>Create patterns, preview them on a house, schedule holidays and back everything up. The app runs on this computer and talks to your controller through Trimlight's official cloud API.</p>
+      <div class="cta" id="heroCta"></div>
+      <div class="leds" aria-hidden="true" id="heroLeds"></div>
+    </div>
+
+    <div class="card" id="setupCard" hidden>
+      <div class="card-head"><div><h2 id="setupTitle">Connect your Trimlight account</h2>
+        <p>Three steps, about two minutes. You only do this once.</p></div></div>
+      <ol class="steps">
+        <li><div><h3>Get your API credentials from Trimlight</h3>
+          <p>Sign in on Trimlight's credentials page with the email and password you use in the Trimlight Edge phone app (or an emailed code). It gives you a <b>Client ID</b> and a <b>Client Secret</b>.</p>
+          <a class="btn" id="applyLink" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;text-decoration:none">Open Trimlight credentials page ↗</a></div></li>
+        <li><div><h3>Paste them here</h3>
+          <div class="grid-2">
+            <div><label for="setupId">Client ID</label><input type="text" id="setupId" autocomplete="off" spellcheck="false" placeholder="e.g. Ab12Cd34Ef56Gh78"></div>
+            <div><label for="setupSecret">Client Secret</label><div class="secret-wrap"><input type="password" id="setupSecret" autocomplete="off" spellcheck="false" placeholder="••••••••••••"><button type="button" id="setupShow">Show</button></div></div>
+          </div></div></li>
+        <li><div><h3>Connect</h3>
+          <p>The app checks the credentials with Trimlight, then saves them on this computer.</p>
+          <div class="row" style="margin-top:10px"><button class="btn primary" id="setupGo">Connect &amp; save</button><button class="btn ghost" id="setupCancel" hidden>Cancel</button></div>
+          <div class="setup-ok" id="setupOk" hidden></div></div></li>
+      </ol>
+      <p class="fine" style="margin-top:12px">🔒 Your Client ID and Secret are saved only in the <code>.env</code> file next to this app and never leave this computer except to sign requests to Trimlight. You never type your Trimlight password into this app.</p>
+    </div>
+
+    <div class="home-grid" id="homeDash" hidden>
+      <div class="card">
+        <div class="card-head"><div><h2>Your controller</h2><p id="homeCtlSub"></p></div></div>
+        <div id="homeStats"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h2>Tonight</h2><p>What your schedules will do.</p></div></div>
+        <div id="homeTonight"></div>
+      </div>
+    </div>
+    <div class="tiles" id="homeTiles">
+          <button class="tile" data-go="colors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.8-1.9 0-.5-.2-.9-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg><b>Colors</b><span>Design patterns and preview them on a house</span></button>
+          <button class="tile" data-go="effects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="15" height="15" rx="3"/><path d="M15 14l1 2.5L18.5 17 16 18l-1 2.5L14 18l-2.5-1 2.5-.5z"/></svg><b>Effects</b><span>Try the 180 built-in animations</span></button>
+          <button class="tile" data-go="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg><b>Library</b><span>Play patterns and build a rotation</span></button>
+          <button class="tile" data-go="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3 2 6M19 3l3 3"/></svg><b>Schedule</b><span>Daily on/off times and holiday dates</span></button>
+          <button class="tile" data-go="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg><b>Device</b><span>Backups, clock and hardware setup</span></button>
+    </div>
+    <p class="fine" style="text-align:center">An independent, open-source tool, not made by or affiliated with Trimlight. Trimlight and Trimlight Edge are trademarks of their owner.</p>
+  </section>
+
+  <!-- Colors -->
+  <section class="panel" id="tab-colors" role="tabpanel">
+    <div class="colors-layout">
+    <aside class="pside" id="patPicker" aria-label="Patterns">
+      <div class="pside-head">
+        <h2>Patterns <span class="count" id="patCount"></span></h2>
+        <button class="icon-btn" id="patSelect" title="Select patterns" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg></button>
+        <button class="btn primary sm" id="patNew" title="New pattern">+ New</button>
+      </div>
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="text" id="patSearch" placeholder="Search patterns" aria-label="Search patterns"></div>
+      <div class="pside-tools">
+        <select id="festFilter" aria-label="Show festival"></select>
+        <select id="patSort" aria-label="Sort patterns">
+          <option value="festival">By festival</option><option value="name">By name</option>
+          <option value="animation">By animation</option><option value="controller">Controller order</option>
+        </select>
+        <button class="icon-btn" id="festManage" title="Manage festivals" aria-label="Manage festivals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      </div>
+      <div class="plist" id="patSwitcher" role="listbox" aria-label="Saved patterns"></div>
+      <div class="pside-bulk" id="patBulk" hidden><span id="patBulkText"></span>
+        <button class="btn sm" id="patBulkSet">Set festival…</button><button class="btn sm ghost" id="patBulkClear">Done</button></div>
+    </aside>
+    <div class="pmain">
+    <div>
+      <div class="eyebrow" id="patEyebrow">New pattern</div>
+      <input class="title-input" id="patName" maxlength="32" placeholder="Name your pattern" aria-label="Pattern name">
+      <div class="row" style="gap:12px;margin-top:2px"><div class="pstatus" id="patStatus" style="margin:0"><i></i><span></span></div>
+        <span class="hint">Festival</span><span id="patFestival"></span></div>
+    </div>
+    <div class="editor">
+      <div class="ecard stage">
+        <div class="scene">
+          <canvas id="patCanvas" aria-label="Preview of the pattern on a house"></canvas>
+          <span class="badge">PREVIEW</span>
+          <span class="mode-tag" id="patModeTag"></span>
+        </div>
+        <div class="sec">
+          <h3>Color sequence <span class="aside" id="patTotal"></span></h3>
+          <div class="seq" id="patSeq"></div>
+          <p class="hint" style="margin-top:8px">The sequence repeats along your whole roofline. Click a color to change it; block widths match pixel counts.</p>
+          <div class="slot-list" id="slots"></div>
+          <button class="add-slot" id="addSlot">+ Add color</button>
+        </div>
+      </div>
+      <div class="ecard">
+        <div class="sec">
+          <h3>Color <span class="aside" id="selLabel"></span></h3>
+          <div class="palette" id="palette"></div>
+          <div class="pal-label">Used in this pattern</div>
+          <div class="palette" id="usedColors"></div>
+        </div>
+        <div class="sec">
+          <h3>Animation <span class="aside">plays in the preview</span></h3>
+          <div class="select-wrap"><select id="cmode" aria-label="Animation"></select></div>
+          <p class="motion-note" id="motionNote"></p>
+        </div>
+        <div class="sec">
+          <div class="slider"><div class="lab">Brightness <b id="cbv"></b></div><input type="range" id="cbright" min="0" max="255" value="255"></div>
+          <div class="slider"><div class="lab">Speed <b id="csv"></b></div><input type="range" id="cspeed" min="0" max="255" value="128"></div>
+        </div>
+        <div class="sec">
+          <h3>Overlay effect</h3>
+          <div class="overlays" id="patOverlay" role="group" aria-label="Overlay effect">
+            <button class="ovl" data-ov=""><span>∅</span>None</button><button class="ovl" data-ov="0"><span>⚡</span>Lightning</button><button class="ovl" data-ov="1"><span>❄</span>Snow</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="actionbar">
+      <div class="msg" id="patBarMsg"></div>
+      <button class="btn ghost danger" id="patDelete" title="Delete this pattern from the controller">Delete</button>
+      <button class="btn ghost" id="patCancel" disabled title="Throw away unsaved changes">Cancel</button>
+      <button class="btn" id="customGo" title="Colors and animation only; overlays play once saved">▶ Preview on lights</button>
+      <button class="btn" id="patCreate">Save as new</button>
+      <button class="btn primary" id="patSave">Save changes</button>
+    </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- Effects -->
+  <section class="panel" id="tab-effects" role="tabpanel">
+    <div class="page-head"><h1>Effects</h1><p>Try any of the controller's 180 built-in animations.</p></div>
+    <div class="card">
+      <input type="text" id="bsearch" placeholder="Search: rainbow, comet, red…" aria-label="Search effects">
+      <label for="bmode">Effect</label>
+      <select id="bmode" size="9"></select>
+      <div class="grid-2">
+        <div><label>Brightness <span class="val-label" id="bbv"></span></label><input type="range" id="bbright" min="0" max="255" value="200"></div>
+        <div><label>Speed <span class="val-label" id="bsv"></span></label><input type="range" id="bspeed" min="0" max="255" value="100"></div>
+      </div>
+      <label>Pixel length <span class="val-label" id="blv"></span></label>
+      <input type="range" id="blen" min="1" max="90" value="30">
+      <label class="toggle"><input type="checkbox" id="brev"> Reverse direction</label>
+      <div class="row" style="margin-top:20px"><button class="btn primary grow" id="builtinGo">Preview on lights</button></div>
+    </div>
+  </section>
+
+  <!-- Library -->
+  <section class="panel" id="tab-library" role="tabpanel">
+    <div class="page-head"><h1>Library</h1><p>Every pattern saved on the controller. Previews show each pattern's colors and motion; click one to play it on your lights.</p></div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Rotation</h2><p id="rotWhere">Up to 5 patterns that take turns when a schedule plays the rotation.</p></div>
+        <div class="rot-ctl"><input type="number" id="rotInterval" min="1" max="1440" value="5" aria-label="Minutes per pattern"><span class="hint">min each</span>
+          <button class="btn primary sm" id="rotSave">Save</button></div>
+      </div>
+      <div class="rot-tiles" id="rotTiles"></div>
+    </div>
+    <div class="lib-toolbar">
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="text" id="esearch" placeholder="Search patterns" aria-label="Search patterns"></div>
+      <div class="chips" id="libFilter" role="group" aria-label="Filter">
+        <button data-f="all" class="on">All</button><button data-f="rotation">In rotation</button><button data-f="overlay">⚡❄ Effects</button><button data-f="scheduled">Scheduled</button>
+      </div>
+      <span class="lib-count" id="libCount"></span>
+    </div>
+    <div class="lib-grid" id="library"><p class="hint">Loading…</p></div>
+    <div class="rotation-bar" id="rotationBar" hidden>
+      <span class="count" id="rotCount"></span>
+      <button class="ghost" id="rotDiscard">Discard</button>
+      <button class="go" id="rotSave2">Save rotation</button>
+    </div>
+  </section>
+
+  <!-- Schedule -->
+  <section class="panel" id="tab-schedule" role="tabpanel">
+    <div class="page-head"><h1>Schedule</h1><p>Schedules run when power is set to <strong>Schedule</strong>. Calendar events cover a date range, such as a holiday week (up to 60).</p></div>
+    <div class="card">
+      <div class="menu" id="schedMenu"><p class="hint">Loading schedules…</p></div>
+    </div>
+  </section>
+
+  <!-- Device -->
+  <section class="panel" id="tab-device" role="tabpanel">
+    <div class="page-head"><h1>Device</h1><p>Your Trimlight account, controller details, clock, cloud backup, groups and hardware setup.</p></div>
+    <div class="card" id="accountCard">
+      <div class="card-head"><div><h2>Trimlight account</h2><p>The API credentials this app uses to reach your lights.</p></div></div>
+      <dl class="kv" id="acctInfo"></dl>
+      <div class="acct-result" id="acctResult" hidden></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="acctTest">Test connection</button>
+        <button class="btn" id="acctChange">Change credentials</button>
+        <span class="grow"></span>
+        <button class="btn danger" id="acctDisconnect">Disconnect</button>
+      </div>
+      <p class="fine" style="margin-top:12px">Need new credentials? Get them on <a id="acctApply" target="_blank" rel="noopener noreferrer">Trimlight's credentials page ↗</a>, then use <b>Change credentials</b>. <b>Disconnect</b> removes them from this computer.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Controller</h2></div></div>
+      <dl class="kv" id="devInfo"><dt>Status</dt><dd class="hint">Loading…</dd></dl>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Cloud backup</h2><p>Trimlight keeps one backup per controller. Backing up replaces it.</p></div></div>
+      <dl class="kv" id="backupInfo"><dt>Latest backup</dt><dd class="hint">Loading…</dd></dl>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="backupNow">Back up now</button>
+        <button class="btn danger" id="restoreNow">Restore this backup</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Groups</h2><p>Link controllers so the master's patterns and schedules sync to the others.</p></div>
+        <button class="btn sm" id="groupAdd">New group</button></div>
+      <div id="groupList"><p class="hint">Loading…</p></div>
+    </div>
+    <details class="card adv" id="hwCard">
+      <summary><h2>Hardware setup</h2><span class="tag warn">Advanced</span></summary>
+      <div class="callout" style="margin-top:16px"><strong>Change these only if they don't match your lights.</strong>
+        Wrong values make colors show incorrectly or leave lights dark. These are normally set once during installation.</div>
+      <div class="grid-2">
+        <div><label for="hwOrder">Color order</label><select id="hwOrder"></select></div>
+        <div><label for="hwIc">LED chip (IC)</label><select id="hwIc"></select></div>
+      </div>
+      <label>Ports <span class="sub">· pixel range driven by each output</span></label>
+      <table class="ports"><thead><tr><th>Port</th><th>Start pixel</th><th>End pixel</th></tr></thead><tbody id="hwPorts"></tbody></table>
+      <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn primary" id="hwSave">Save hardware setup</button></div>
+    </details>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <div class="inner">
+    <button role="tab" data-tab="home" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>
+      Home</button>
+    <button role="tab" data-tab="colors" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.8-1.9 0-.5-.2-.9-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg>
+      Colors</button>
+    <button role="tab" data-tab="effects" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="15" height="15" rx="3"/><path d="M15 14l1 2.5L18.5 17 16 18l-1 2.5L14 18l-2.5-1 2.5-.5z"/><path d="M19.5 8l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/></svg>
+      Effects</button>
+    <button role="tab" data-tab="library" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>
+      Library</button>
+    <button role="tab" data-tab="schedule" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3 2 6M19 3l3 3"/></svg>
+      Schedule</button>
+    <button role="tab" data-tab="device" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+      Device</button>
+  </div>
+</nav>
+<dialog id="sheet" aria-labelledby="sheetTitle"><div class="sheet-body" id="sheetBody"></div></dialog>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const ROTATION_ID = 200;
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const SWITCH = { 0: "Off", 1: "On", 2: "Schedule" };
+let catalog = { builtin: [], custom: [], overlays: {}, repetitions: [] };
+let deviceId = null, device = null;
+let rotation = [];          // effect ids picked for the combined effect, in order
+let rotationDirty = false;  // keep unsaved picks across refreshes
+let devicesList = [];       // every controller on the account
+let groups = null;          // null until loaded
+let backup = undefined;     // latest cloud backup: undefined = loading, null = failed
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+function toast(msg, err) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.className = "", err ? 5000 : 2200);
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: "POST", body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json", "X-Trimlight-App": "1" },
+  };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({ error: "Bad response" }));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+const dev = (path, body) => api(`/api/device/${deviceId}${path}`, body);
+
+async function act(btn, fn, okMsg) {
+  if (btn) btn.disabled = true;
+  try { await fn(); if (okMsg) toast(okMsg); }
+  catch (e) { toast(e.message, true); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+const hex = (n) => "#" + Number(n).toString(16).padStart(6, "0");
+const unhex = (h) => parseInt(h.slice(1), 16);
+const pad = (n) => String(n).padStart(2, "0");
+const fmtTime = (t) => `${pad(t.hours)}:${pad(t.minutes)}`;
+const parseTime = (v) => { const [h, m] = v.split(":").map(Number); return { hours: h, minutes: m }; };
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ---------- Tabs ---------- */
+function showTab(name) {
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  $("main").classList.toggle("wide", name === "colors");
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + name));
+  store.set("trimlight.tab", name);
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+}
+let setupNeeded = false;
+document.querySelectorAll("nav.tabs [data-tab]").forEach(b => b.onclick = () => {
+  if (setupNeeded && b.dataset.tab !== "home") return toast("Connect your Trimlight account on the Home page first", true);
+  showTab(b.dataset.tab); window.scrollTo(0, 0);
+});
+
+/* ---------- Helpers over device data ---------- */
+const effects = () => device?.effects || [];
+const effectById = (id) => effects().find(e => e.id === id);
+function effectName(id) {
+  if (id === ROTATION_ID) return `Combined effect (${device?.combinedEffect?.effectIds?.length || 0})`;
+  return effectById(id)?.name ?? `Effect #${id}`;
+}
+function overlaysFor(id) {
+  return (device?.overlayEffects || []).filter(o => o.targetEffect === id).map(o => o.overlayType);
+}
+function usedPixels(e) { return (e.pixels || []).filter(p => !p.disable && p.count > 0); }
+function modeName(e) {
+  return e.category === 0 ? (catalog.builtin[e.mode] || `Built-in ${e.mode}`) : (catalog.custom[e.mode] || `Mode ${e.mode}`);
+}
+function usage(id) {
+  const where = [];
+  (device?.daily || []).forEach(d => d.effectId === id && where.push(`daily schedule ${d.id + 1}`));
+  (device?.calendar || []).forEach(c => c.effectId === id && where.push("a calendar schedule"));
+  if ((device?.combinedEffect?.effectIds || []).includes(id)) where.push("the saved rotation");
+  return where;
+}
+function effectOptions(select, selected, includeRotation) {
+  select.innerHTML = "";
+  if (includeRotation) select.add(new Option(`↻ ${effectName(ROTATION_ID)}`, ROTATION_ID));
+  effects().forEach(e => select.add(new Option(e.name, e.id)));
+  if (selected !== undefined) select.value = String(selected);
+}
+
+/* ---------- Header ---------- */
+function renderStatus() {
+  const online = device?.connectivity === 1;
+  $("#status").innerHTML = device
+    ? `<i class="dot" style="background:var(${online ? "--ok" : "--err"})"></i><span class="st-text">${online ? "Online" : "Offline"}</span>`
+    : '<span class="st-text">Connecting…</span>';
+  document.querySelectorAll("[data-state]").forEach(b => b.classList.toggle("active", Number(b.dataset.state) === device?.switchState));
+}
+
+/* ---------- Library ---------- */
+let libFilter = "all";
+const RAINBOW = ["#ff0040", "#ff8a00", "#ffe600", "#3dff3d", "#00d5ff", "#3b5bff", "#b400ff"];
+
+// Animated preview: the pattern's colors as a repeating LED strip, moved the way its motion runs.
+function stripHTML(e) {
+  let cols = usedPixels(e).map(p => [hex(p.color), Math.min(p.count, 30)]);
+  if (e.category === 0 || !cols.length) cols = RAINBOW.map(c => [c, 4]);
+  const total = cols.reduce((n, [, c]) => n + c, 0);
+  const px = Math.max(3, Math.min(10, 180 / total));
+  let x = 0;
+  const stops = cols.map(([c, n]) => { const a = x; x += n * px; return `${c} ${a.toFixed(1)}px ${x.toFixed(1)}px`; }).join(",");
+  const w = x.toFixed(1);
+  const dur = (13 - ((e.speed ?? 128) / 255) * 11.5) * Math.max(0.6, Math.min(1.6, x / 160));
+  // [left half, right half] animation per custom motion; built-ins just flow.
+  const m = e.category === 0 ? -1 : e.mode;
+  const anim = m === -1 ? ["a-flow", "a-flow"]
+    : [1, 7, 11].includes(m) ? ["a-r", "a-r"] : [2, 8, 12].includes(m) ? ["a-l", "a-l"]
+    : [3, 9, 13].includes(m) ? ["a-l", "a-r"] : [4, 10, 14].includes(m) ? ["a-r", "a-l"]
+    : m === 5 ? ["a-twinkle", "a-twinkle"] : m === 6 || m === 16 ? ["a-breath", "a-breath"]
+    : m === 15 ? ["a-strobe", "a-strobe"] : ["", ""];
+  const style = `--w:${w}px;--dur:${dur.toFixed(2)}s;background-image:linear-gradient(90deg,${stops})`;
+  // Two halves only when they move apart or together (middle-out motions); otherwise one run, so there's no seam.
+  if (anim[0] === anim[1]) return `<i class="half ${anim[0]}" style="${style}"></i>`;
+  return `<i class="half ${anim[0]}" style="${style}"></i><i class="half ${anim[1]}" style="${style}"></i>`;
+}
+
+function playingEffect() {
+  const ce = device?.currentEffect;
+  if (!ce || device.switchState === 0) return null;
+  if (ce.id >= 0 && effectById(ce.id)) return effectById(ce.id);
+  if (ce.category === 0) return null;
+  const sig = (e) => e.mode + ":" + usedPixels(e).map(p => p.color + "x" + p.count).join(",");
+  return customEffects().find(e => sig(e) === sig(ce)) || null;
+}
+
+function scheduledIn(id) {
+  const d = (device?.daily || []).filter(x => x.enable && x.effectId === id).map(x => `Daily ${x.id + 1}`);
+  const c = (device?.calendar || []).some(x => x.effectId === id) ? ["Calendar"] : [];
+  return d.concat(c);
+}
+
+function renderLibrary() {
+  const q = $("#esearch").value.trim().toLowerCase();
+  const all = effects();
+  const list = all.filter(e => e.name.toLowerCase().includes(q) && (
+    libFilter === "all" || (libFilter === "rotation" && rotation.includes(e.id)) ||
+    (libFilter === "overlay" && overlayOf(e.id) !== null) || (libFilter === "scheduled" && scheduledIn(e.id).length)));
+  $("#libCount").textContent = list.length === all.length ? `${all.length} patterns` : `${list.length} of ${all.length}`;
+  const box = $("#library");
+  box.innerHTML = list.length ? "" : `<div class="empty" style="grid-column:1/-1">No patterns${q || libFilter !== "all" ? " match" : ""}.</div>`;
+  const playing = playingEffect()?.id;
+  for (const e of list) {
+    const pos = rotation.indexOf(e.id);
+    const ov = overlayOf(e.id);
+    const card = document.createElement("article");
+    card.className = "pcard" + (pos >= 0 ? " picked" : "") + (e.id === playing ? " playing" : "");
+    const colors = usedPixels(e).length;
+    const meta = `${modeName(e)}${e.category === 1 ? ` · ${colors} color${colors === 1 ? "" : "s"}` : " · built-in"}`;
+    const tags = [e.id === playing ? '<span class="tag live">Playing</span>' : "",
+                  ...scheduledIn(e.id).map(t => `<span class="tag">${t}</span>`)].join("");
+    card.innerHTML = `
+      <button class="pstrip" title="Play on lights" aria-label="Play ${esc(e.name)} on the lights">${stripHTML(e)}
+        <span class="play-hint"><span>▶ Play on lights</span></span></button>
+      <button class="pickbtn" aria-pressed="${pos >= 0}" title="${pos >= 0 ? "Remove from rotation" : "Add to rotation"}"
+        aria-label="${pos >= 0 ? "Remove from rotation" : "Add to rotation"}">${pos >= 0 ? pos + 1 : "+"}</button>
+      ${ov !== null ? `<span class="fx-badge">${ov === 0 ? "⚡ Lightning" : "❄ Snow"}</span>` : ""}
+      <div class="pbody">
+        <div class="pname"></div>
+        <div class="pmeta">${esc(meta)}</div>
+        <div class="ptags">${tags}</div>
+        <div class="pfoot">
+          <select class="ov" aria-label="Overlay effect for ${esc(e.name)}">
+            <option value="">No overlay</option><option value="0"${ov === 0 ? " selected" : ""}>⚡ Lightning</option>
+            <option value="1"${ov === 1 ? " selected" : ""}>❄ Snow</option></select>
+          <button class="icon-btn" data-act="edit" title="Edit colors" aria-label="Edit colors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.7-.8 1.7-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/></svg></button>
+          <button class="icon-btn" data-act="rename" title="Rename" aria-label="Rename"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+          <button class="icon-btn danger" data-act="delete" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+        </div>
+      </div>`;
+    card.querySelector(".pname").textContent = e.name;
+    card.querySelector(".pname").title = e.name;
+    card.querySelector(".pstrip").onclick = () =>
+      act(null, async () => { await dev("/effect", { id: e.id }); await loadDevice(true); }, `Playing “${e.name}”`);
+    card.querySelector(".pickbtn").onclick = () => togglePick(e.id);
+    const ovSel = card.querySelector(".ov");
+    ovSel.onchange = () => act(ovSel, async () => {
+      await dev("/effect/overlay", { id: e.id, type: ovSel.value === "" ? null : Number(ovSel.value) });
+      await loadDevice(true);
+    }, `Overlay updated for “${e.name}”`);
+    const edit = card.querySelector("[data-act=edit]");
+    if (e.category === 1) edit.onclick = () => {
+      if (editor.dirty && !confirm("Discard unsaved changes in the Colors tab?")) return;
+      loadPattern(e.id); editor.from = "library"; showTab("colors"); window.scrollTo(0, 0);
+    };
+    else edit.remove();
+    card.querySelector("[data-act=rename]").onclick = () => renameEffect(e);
+    card.querySelector("[data-act=delete]").onclick = () => deleteEffect(e);
+    box.appendChild(card);
+  }
+  renderRotation();
+}
+
+function togglePick(id) {
+  const i = rotation.indexOf(id);
+  if (i >= 0) rotation.splice(i, 1);
+  else if (rotation.length >= 5) return toast("A rotation holds up to 5 patterns. Remove one first", true);
+  else rotation.push(id);
+  rotationDirty = true;
+  renderLibrary();
+}
+
+function renderRotation() {
+  const tiles = rotation.map((id, i) => {
+    const e = effectById(id);
+    return `<div class="rot-tile"><div class="pstrip">${e ? stripHTML(e) : ""}</div>
+      <div class="meta"><span class="num">${i + 1}</span><span class="nm" title="${esc(effectName(id))}">${esc(effectName(id))}</span>
+      <button class="x" data-rm="${id}" title="Remove" aria-label="Remove ${esc(effectName(id))} from rotation">×</button></div></div>`;
+  });
+  for (let i = rotation.length; i < 5; i++) tiles.push(`<div class="rot-tile empty">${i === rotation.length ? "Press + on a pattern to add it" : ""}</div>`);
+  $("#rotTiles").innerHTML = tiles.join("");
+  $("#rotTiles").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => togglePick(Number(b.dataset.rm)));
+  const uses = (device?.daily || []).filter(d => d.enable && d.effectId === ROTATION_ID)
+    .map(d => `Daily schedule ${d.id + 1} (${fmt12(d.startTime)} – ${fmt12(d.endTime)})`)
+    .concat((device?.calendar || []).filter(c => c.effectId === ROTATION_ID).map(c => `calendar ${fmtDate(c.startDate)} – ${fmtDate(c.endDate)}`));
+  $("#rotWhere").textContent = uses.length ? `Plays during ${uses.join(" and ")}.` : "Not used by any schedule yet. Pick it as the Library in a schedule.";
+  $("#rotationBar").hidden = !rotationDirty;
+  $("#rotCount").textContent = `Rotation changed: ${rotation.length} pattern${rotation.length === 1 ? "" : "s"}, not saved yet`;
+}
+const renderRotationBar = renderRotation;
+
+document.querySelectorAll("#libFilter [data-f]").forEach(b => b.onclick = () => {
+  libFilter = b.dataset.f;
+  document.querySelectorAll("#libFilter [data-f]").forEach(x => x.classList.toggle("on", x === b));
+  renderLibrary();
+});
+if (matchMedia("(hover: none)").matches) $("#library").classList.add("touch");
+
+async function renameEffect(e) {
+  const name = prompt(`Rename “${e.name}” to:`, e.name);
+  if (name === null || !name.trim() || name.trim() === e.name) return;
+  await act(null, async () => { await dev("/effect/rename", { id: e.id, name: name.trim() }); await loadDevice(true); }, "Renamed");
+}
+
+async function deleteEffect(e, btn) {
+  const used = usage(e.id);
+  const msg = `Delete “${e.name}” from the controller? This can’t be undone.` +
+              (used.length ? `\n\nIt is used by ${used.join(", ")}.` : "");
+  if (!confirm(msg)) return;
+  rotation = rotation.filter(id => id !== e.id);
+  await act(btn || null, async () => {
+    await dev("/effect/delete", { id: e.id });
+    await loadDevice(true);
+    if (editor?.id === e.id) loadPattern(null);  // it was open in the Colors tab
+  }, `Deleted “${e.name}”`);
+}
+
+const saveRotation = (btn) => act(btn, async () => {
+  if (!rotation.length) throw new Error("Pick at least one pattern");
+  await dev("/combined", { effectIds: rotation, interval: Number($("#rotInterval").value) || 5 });
+  rotationDirty = false;
+  await loadDevice(true);
+}, "Rotation saved");
+$("#rotSave").onclick = () => saveRotation($("#rotSave"));
+$("#rotSave2").onclick = () => saveRotation($("#rotSave2"));
+$("#rotDiscard").onclick = () => {
+  rotation = [...(device?.combinedEffect?.effectIds || [])];
+  $("#rotInterval").value = device?.combinedEffect?.interval || 5;
+  rotationDirty = false; renderLibrary();
+};
+$("#rotInterval").oninput = () => { rotationDirty = true; renderRotationBar(); };
+
+/* ---------- Schedule ---------- */
+let loadState = "loading";  // "loading" | "ok" | "error"
+const fmt12 = (t) => `${t.hours % 12 || 12}:${pad(t.minutes)} ${t.hours < 12 ? "AM" : "PM"}`;
+const fmtDate = (d) => `${MONTHS[d.month - 1]} ${d.day}`;
+const dateKey = (d) => d.month * 100 + d.day;
+
+function renderSchedule() {
+  const box = $("#schedMenu");
+  if (!device) {
+    box.innerHTML = loadState === "error"
+      ? '<p class="hint">Couldn’t load schedules from Trimlight. <button class="link" id="schedRetry">Retry</button></p>'
+      : '<p class="hint">Loading schedules…</p>';
+    $("#schedRetry")?.addEventListener("click", () => act($("#schedRetry"), () => loadDevice(), "Loaded"));
+    return;
+  }
+  box.innerHTML = "";
+  const item = (label, value, onclick, cls) => {
+    const b = document.createElement("button");
+    b.className = "menu-item" + (cls ? " " + cls : "");
+    b.innerHTML = '<span></span><span class="val"></span><span class="chev">›</span>';
+    b.children[0].textContent = label; b.children[1].textContent = value; b.onclick = onclick;
+    box.appendChild(b);
+  };
+  const head = (text) => box.insertAdjacentHTML("beforeend", `<div class="menu-head">${esc(text)}</div>`);
+
+  item("Create a calendar event", "", () => openCalendarSheet(null), "create");
+  head("Daily schedule");
+  [0, 1].forEach(i => {
+    const d = (device.daily || []).find(x => x.id === i);
+    item(`Daily schedule ${i + 1}`, !d ? "Not set" : d.enable ? `On · ${fmt12(d.startTime)} – ${fmt12(d.endTime)}` : "Off",
+         () => openDailySheet(i));
+  });
+  const cal = [...(device.calendar || [])].sort((a, b) => dateKey(a.startDate) - dateKey(b.startDate));
+  head(`Calendar events (${cal.length})`);
+  if (!cal.length) box.insertAdjacentHTML("beforeend", '<p class="hint" style="padding:10px 4px">No calendar events yet.</p>');
+  cal.forEach(c => item(effectName(c.effectId), `${fmtDate(c.startDate)} – ${fmtDate(c.endDate)}`, () => openCalendarSheet(c)));
+}
+
+const sheet = $("#sheet");
+function showSheet(html) {
+  $("#sheetBody").innerHTML = html;
+  $("#sheetBody").querySelectorAll("[data-close]").forEach(b => b.onclick = () => sheet.close());
+  if (!sheet.open) sheet.showModal();
+}
+sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });  // tap backdrop to close
+
+function openDailySheet(i) {
+  const d = (device.daily || []).find(x => x.id === i) || {
+    id: i, enable: false, effectId: effects()[0]?.id ?? ROTATION_ID, repetition: 1,
+    startTime: { hours: 18, minutes: 0 }, endTime: { hours: 23, minutes: 0 },
+  };
+  showSheet(`
+    <div class="sheet-top"><span></span><button class="link" data-close>Close</button></div>
+    <div class="field"><h3 id="sheetTitle" style="font-size:18px">Daily Schedule ${i + 1}</h3>
+      <input type="checkbox" class="switch" id="dEn" role="switch" aria-label="Schedule on" ${d.enable ? "checked" : ""}></div>
+    <div class="field"><label for="dRep">Repetition</label><select id="dRep"></select></div>
+    <div class="field"><label for="dFx">Library</label><select id="dFx"></select></div>
+    <div class="field"><label for="dSt">Start time</label><input type="time" id="dSt" value="${fmtTime(d.startTime)}"></div>
+    <div class="field"><label for="dEt">Off time</label><input type="time" id="dEt" value="${fmtTime(d.endTime)}"></div>
+    <div class="sheet-actions"><button class="link" data-close>Back</button><span class="spacer"></span>
+      <button class="btn primary" id="dSave">Save</button></div>`);
+  catalog.repetitions.forEach((n, k) => $("#dRep").add(new Option(n, k)));
+  $("#dRep").value = d.repetition;
+  effectOptions($("#dFx"), d.effectId, true);
+  $("#dSave").onclick = () => act($("#dSave"), async () => {
+    await dev("/daily", {
+      id: i, enable: $("#dEn").checked, effectId: Number($("#dFx").value), repetition: Number($("#dRep").value),
+      startTime: parseTime($("#dSt").value), endTime: parseTime($("#dEt").value),
+    });
+    sheet.close();
+    await loadDevice(true);
+  }, `Daily schedule ${i + 1} saved`);
+}
+
+function openCalendarSheet(existing) {
+  const now = new Date();
+  const today = { month: now.getMonth() + 1, day: now.getDate() };
+  const ev = existing ? JSON.parse(JSON.stringify(existing)) : {
+    id: null, effectId: effects()[0]?.id ?? ROTATION_ID, startDate: { ...today }, endDate: { ...today },
+    startTime: { hours: 18, minutes: 0 }, endTime: { hours: 23, minutes: 0 },
+  };
+  const keep = () => {  // carry form values across the date-picker steps
+    ev.effectId = Number($("#cFx").value); ev.startTime = parseTime($("#cSt").value); ev.endTime = parseTime($("#cEt").value);
+  };
+  const form = () => {
+    showSheet(`
+      <div class="sheet-top"><span></span><button class="link" data-close>Close</button></div>
+      <h3 class="sheet-title" id="sheetTitle">${existing ? "CALENDAR EVENT" : "CREATE A CALENDAR EVENT"}</h3>
+      <div class="field"><label for="cFx">Library</label><select id="cFx"></select></div>
+      <div class="field"><span>Start date</span><button class="date-btn" id="cSd">${fmtDate(ev.startDate)} ›</button></div>
+      <div class="field"><span>End date</span><button class="date-btn" id="cEd">${fmtDate(ev.endDate)} ›</button></div>
+      <div class="field"><label for="cSt">Start time</label><input type="time" id="cSt" value="${fmtTime(ev.startTime)}"></div>
+      <div class="field"><label for="cEt">Off time</label><input type="time" id="cEt" value="${fmtTime(ev.endTime)}"></div>
+      <div class="sheet-actions"><button class="link" data-close>Back</button><span class="spacer"></span>
+        ${existing ? '<button class="btn danger" id="cDel">Delete</button>' : ""}
+        <button class="btn primary" id="cSave">${existing ? "Save" : "Create"}</button></div>`);
+    effectOptions($("#cFx"), ev.effectId, true);
+    $("#cSd").onclick = () => { keep(); pickDate("Start date", ev.startDate, form); };
+    $("#cEd").onclick = () => { keep(); pickDate("End date", ev.endDate, form); };
+    $("#cSave").onclick = () => act($("#cSave"), async () => {
+      keep();
+      await dev("/calendar", ev);
+      sheet.close();
+      await loadDevice(true);
+    }, existing ? "Calendar event saved" : "Calendar event created");
+    if (existing) $("#cDel").onclick = () => {
+      if (!confirm(`Delete the calendar event for ${effectName(ev.effectId)} (${fmtDate(ev.startDate)} – ${fmtDate(ev.endDate)})?`)) return;
+      act($("#cDel"), async () => { await dev("/calendar/delete", { id: ev.id }); sheet.close(); await loadDevice(true); },
+          "Calendar event deleted");
+    };
+  };
+  form();
+}
+
+// Two-step picker like the Trimlight app: month grid, then day grid. Mutates `date`, then calls done().
+function pickDate(title, date, done) {
+  const top = '<div class="sheet-top"><button class="link" data-back>Back</button><button class="link" data-close>Close</button></div>';
+  const months = () => {
+    showSheet(`${top}<h3 class="sheet-title">${title.toUpperCase()} · MONTH</h3><div class="grid-pick">${
+      MONTHS.map((m, i) => `<button data-m="${i + 1}" class="${date.month === i + 1 ? "on" : ""}" aria-label="${m}">${i + 1}</button>`).join("")}</div>`);
+    $("#sheetBody [data-back]").onclick = done;
+    $("#sheetBody").querySelectorAll("[data-m]").forEach(b => b.onclick = () => { date.month = Number(b.dataset.m); days(); });
+  };
+  const days = () => {
+    const max = new Date(2024, date.month, 0).getDate();  // leap year, so Feb offers 29
+    date.day = Math.min(date.day, max);
+    let grid = "";
+    for (let d = 1; d <= max; d++) grid += `<button data-d="${d}" class="${date.day === d ? "on" : ""}">${d}</button>`;
+    showSheet(`${top}<h3 class="sheet-title">${title.toUpperCase()} · ${MONTHS[date.month - 1].toUpperCase()}</h3><div class="grid-pick days">${grid}</div>`);
+    $("#sheetBody [data-back]").onclick = months;
+    $("#sheetBody").querySelectorAll("[data-d]").forEach(b => b.onclick = () => { date.day = Number(b.dataset.d); done(); });
+  };
+  months();
+}
+
+/* ---------- Colors: pattern editor ---------- */
+const PALETTE = ["#ff0000", "#ff4000", "#ff8c00", "#ffd700", "#ffff00", "#7cfc00", "#00ff00", "#00c8b4",
+                 "#00ffff", "#0047ff", "#0000ff", "#7800ff", "#b400ff", "#ff0077", "#ffffff", "#dc6414", "#ffc94d", "#800000", "#000000"];
+// The 17 animations, grouped for the dropdown (labels match the controller's names).
+const MOTION_GROUPS = [["Steady", [0, 5, 6, 15, 16]], ["Chase", [1, 2, 3, 4]], ["Comet", [7, 8, 9, 10]], ["Wave", [11, 12, 13, 14]]];
+const NEW_PATTERN = { id: null, name: "", mode: 0, speed: 128, brightness: 255, overlay: null,
+                      slots: [{ color: "#ff0000", count: 5 }, { color: "#00ff00", count: 5 }] };
+let editor = null;  // { id, slots, sel, overlay, savedOverlay, dirty, from }
+
+const customEffects = () => effects().filter(e => e.category === 1);
+const overlayOf = (id) => { const o = (device?.overlayEffects || []).find(x => x.targetEffect === id); return o ? o.overlayType : null; };
+const slotsCSS = (slots) => {
+  const total = slots.reduce((n, s) => n + s.count, 0) || 1; let x = 0;
+  return "linear-gradient(90deg," + slots.map(s => { const a = x; x += s.count / total * 100; return `${s.color} ${a}% ${x}%`; }).join(",") + ")";
+};
+
+let pickerSort = ["festival", "name", "animation", "controller"].includes(store.get("trimlight.sort")) ? store.get("trimlight.sort") : "festival";
+let festFilter = "all";          // "all" | "none" | festival id
+let selectMode = false;
+const picked = new Set();        // pattern ids ticked for bulk festival changes
+const closedGroups = new Set();
+const ICON_MORE = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+
+function renderFestFilter(all) {
+  const count = (id) => all.filter(e => (festivalOf(e)?.id ?? "none") === id).length;
+  if (festFilter !== "all" && festFilter !== "none" && !festivalById(festFilter)) festFilter = "all";
+  const opts = [`<option value="all">All festivals (${all.length})</option>`]
+    .concat(festivalsSorted().filter(f => count(f.id) || inSeason(f) || festFilter === f.id)
+      .map(f => `<option value="${esc(f.id)}">${esc(f.emoji)} ${esc(f.name)} (${count(f.id)})${inSeason(f) ? " · in season" : ""}</option>`));
+  if (count("none")) opts.push(`<option value="none">No festival (${count("none")})</option>`);
+  $("#festFilter").innerHTML = opts.join("");
+  $("#festFilter").value = festFilter;
+}
+
+function renderSwitcher() {
+  const all = customEffects(), qy = $("#patSearch").value.trim().toLowerCase();
+  renderFestFilter(all);
+  let list = all.filter(e => (!qy || e.name.toLowerCase().includes(qy)) &&
+    (festFilter === "all" || (festivalOf(e)?.id ?? "none") === festFilter));
+  if (pickerSort === "name") list = [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  if (pickerSort === "animation") list = [...list].sort((a, b) => modeName(a).localeCompare(modeName(b)) || a.name.localeCompare(b.name));
+  $("#patCount").textContent = list.length === all.length ? all.length : `${list.length} / ${all.length}`;
+  $("#patSort").value = pickerSort;
+  $("#patSelect").setAttribute("aria-pressed", selectMode);
+  for (const id of [...picked]) if (!effectById(id)) picked.delete(id);
+
+  const strip = (e) => { const sl = usedPixels(e).map(p => ({ color: hex(p.color), count: p.count })); return sl.length ? slotsCSS(sl) : "#000"; };
+  const row = (e) => {
+    const f = festivalOf(e);
+    const sub = [modeName(e), f && pickerSort !== "festival" ? `${f.emoji} ${f.name}` : ""].filter(Boolean).join(" · ");
+    return `<div class="prow ${editor?.id === e.id ? "on" : ""}" data-i="${e.id}" role="option" aria-selected="${editor?.id === e.id}" tabindex="0">
+      ${selectMode ? `<input type="checkbox" class="cb" data-pick="${e.id}" ${picked.has(e.id) ? "checked" : ""} aria-label="Select ${esc(e.name)}">` : ""}
+      <i class="sq" style="background:${strip(e)}"></i>
+      <div class="txt"><div class="nm" title="${esc(e.name)}">${esc(e.name)}</div><div class="sub">${esc(sub)}</div></div>
+      <button class="icon-btn more" data-more="${e.id}" title="More" aria-label="More actions for ${esc(e.name)}">${ICON_MORE}</button></div>`;
+  };
+  let html = "";
+  if (pickerSort === "festival") {
+    const groups = festivalsSorted().map(f => [f, list.filter(e => festivalOf(e)?.id === f.id)])
+      .concat([[null, list.filter(e => !festivalOf(e))]]).filter(([, es]) => es.length);
+    for (const [f, es] of groups) {
+      const key = f ? f.id : "none", shut = closedGroups.has(key) && !qy;
+      html += `<button class="pgroup ${shut ? "closed" : ""}" data-g="${esc(key)}" aria-expanded="${!shut}"><span class="chev">▾</span><span>${f ? esc(f.emoji) + "&nbsp; " + esc(f.name) : "No festival"}</span>${f && inSeason(f) ? ' <span class="tag ok">in season</span>' : ""}<span class="n">${es.length}</span></button>`;
+      if (!shut) html += es.map(row).join("");
+    }
+  } else html = list.map(row).join("");
+  const box = $("#patSwitcher");
+  box.innerHTML = html || `<div class="empty">No patterns match.</div>`;
+
+  box.querySelectorAll("[data-g]").forEach(g => g.onclick = () => {
+    closedGroups.has(g.dataset.g) ? closedGroups.delete(g.dataset.g) : closedGroups.add(g.dataset.g); renderSwitcher();
+  });
+  box.querySelectorAll(".prow").forEach(r => {
+    const open = () => {
+      const id = Number(r.dataset.i);
+      if (selectMode) { picked.has(id) ? picked.delete(id) : picked.add(id); return renderSwitcher(); }
+      if (id === editor.id && !editor.dirty) return;
+      if (editor.dirty && !confirm("Discard unsaved changes to this pattern?")) return;
+      loadPattern(id);
+    };
+    r.onclick = (ev) => { if (!ev.target.closest("[data-more]")) open(); };
+    r.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); } };
+  });
+  box.querySelectorAll("[data-pick]").forEach(c => c.onclick = (ev) => { ev.preventDefault(); });  // the row click toggles it
+  box.querySelectorAll("[data-more]").forEach(b => b.onclick = (ev) => { ev.stopPropagation(); openRowMenu(b, effectById(Number(b.dataset.more))); });
+
+  $("#patBulk").hidden = !selectMode;
+  $("#patBulkText").textContent = picked.size ? `${picked.size} selected` : "Tap patterns to select";
+  $("#patBulkSet").disabled = !picked.size;
+  // Keep the open pattern in view inside the list (never scrolls the page).
+  const on = box.querySelector(".prow.on");
+  if (on && box.clientHeight) {
+    const top = on.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    if (top < 30 || top > box.clientHeight - 50) box.scrollTop += top - 80;
+  }
+}
+
+function openRowMenu(anchor, e) {
+  closeFestivalMenu();
+  const m = document.createElement("div");
+  m.className = "fmenu";
+  m.innerHTML = `<button data-a="open">Open</button><button data-a="festival">Set festival…</button><hr><button data-a="delete" style="color:var(--err)">Delete…</button>`;
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.right - m.offsetWidth, innerWidth - m.offsetWidth - 8)) + "px";
+  m.style.top = (r.bottom + m.offsetHeight + 8 > innerHeight ? Math.max(8, r.top - m.offsetHeight - 6) : r.bottom + 6) + "px";
+  m.querySelector("[data-a=open]").onclick = (ev) => {
+    ev.stopPropagation(); closeFestivalMenu();
+    if (e.id !== editor.id && editor.dirty && !confirm("Discard unsaved changes to this pattern?")) return;
+    loadPattern(e.id);
+  };
+  m.querySelector("[data-a=festival]").onclick = (ev) => { ev.stopPropagation(); closeFestivalMenu(); openFestivalMenu(anchor, [e]); };
+  m.querySelector("[data-a=delete]").onclick = (ev) => {
+    ev.stopPropagation(); closeFestivalMenu();
+    if (e.id === editor.id && editor.dirty && !confirm("This pattern has unsaved changes. Delete it anyway?")) return;
+    deleteEffect(e, anchor);
+  };
+  setTimeout(() => document.addEventListener("click", closeFestivalMenu, { once: true }));
+}
+
+$("#festFilter").onchange = () => {
+  const v = $("#festFilter").value;
+  festFilter = v; renderSwitcher();
+};
+$("#patSort").onchange = () => { pickerSort = $("#patSort").value; store.set("trimlight.sort", pickerSort); renderSwitcher(); };
+$("#festManage").onclick = () => openFestivalManager();
+$("#patSelect").onclick = () => { selectMode = !selectMode; if (!selectMode) picked.clear(); renderSwitcher(); };
+$("#patBulkClear").onclick = () => { selectMode = false; picked.clear(); renderSwitcher(); };
+$("#patBulkSet").onclick = (ev) => { ev.stopPropagation(); openFestivalMenu($("#patBulkSet"), [...picked].map(effectById).filter(Boolean)); };
+const patternOptions = renderSwitcher;  // called after each device refresh
+$("#patSearch").oninput = renderSwitcher;
+$("#patNew").onclick = () => {
+  if (editor.id == null && !editor.dirty) return;
+  if (editor.dirty && !confirm("Discard unsaved changes to this pattern?")) return;
+  loadPattern(null); $("#patName").focus();
+};
+
+function renderPalette() {
+  const selColor = editor.slots[editor.sel]?.color;
+  const sw = (c) => `<button class="swatch ${c === selColor ? "on" : ""}" style="background:${c}" data-c="${c}" title="${c.toUpperCase()}" aria-label="${c}"></button>`;
+  $("#palette").innerHTML = PALETTE.map(sw).join("") +
+    `<label class="swatch picker" title="Any color"><input type="color" value="${selColor || "#ff8800"}" aria-label="Pick any color"></label>`;
+  $("#usedColors").innerHTML = [...new Set(editor.slots.map(s => s.color))].map(sw).join("");
+  document.querySelectorAll("#tab-colors [data-c]").forEach(b => b.onclick = () => applyColor(b.dataset.c));
+  $("#palette .picker input").oninput = (ev) => applyColor(ev.target.value);
+  $("#selLabel").textContent = `Color ${editor.sel + 1} of ${editor.slots.length}`;
+}
+
+function applyColor(color) {
+  editor.slots[editor.sel].color = color;
+  markDirty(); renderSlots();
+}
+
+function renderSlots() {
+  const total = editor.slots.reduce((n, s) => n + s.count, 0);
+  $("#patTotal").textContent = `${editor.slots.length} color${editor.slots.length === 1 ? "" : "s"} · ${total} pixels per repeat`;
+  $("#patSeq").innerHTML = editor.slots.map((s, i) =>
+    `<button class="seg-b ${i === editor.sel ? "sel" : ""}" data-i="${i}" style="background:${s.color};flex:${s.count}" aria-label="Color ${i + 1}"><em>${s.count}</em></button>`).join("");
+  $("#patSeq").querySelectorAll(".seg-b").forEach(b => b.onclick = () => { editor.sel = Number(b.dataset.i); renderSlots(); });
+  $("#slots").innerHTML = editor.slots.map((s, i) => `
+    <div class="slot-row ${i === editor.sel ? "sel" : ""}" data-i="${i}">
+      <span class="sw2" style="background:${s.color}"></span><span class="hex">${s.color.toUpperCase()}</span>
+      <span class="stepper"><button data-d="-1" aria-label="Fewer pixels">−</button><input type="number" min="1" max="255" value="${s.count}" aria-label="Pixels of color ${i + 1}"><small>px</small><button data-d="1" aria-label="More pixels">+</button></span>
+      <button class="icon-btn danger" data-rm title="Remove color" aria-label="Remove color ${i + 1}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+    </div>`).join("");
+  $("#slots").querySelectorAll(".slot-row").forEach(row => {
+    const i = Number(row.dataset.i), s = editor.slots[i];
+    const setCount = (n) => { s.count = Math.max(1, Math.min(255, n || 1)); markDirty(); renderSlots(); };
+    row.onclick = (ev) => { if (!ev.target.closest(".stepper,[data-rm]")) { editor.sel = i; renderSlots(); } };
+    row.querySelectorAll("[data-d]").forEach(b => b.onclick = () => setCount(s.count + Number(b.dataset.d)));
+    row.querySelector("input").onchange = (ev) => setCount(Number(ev.target.value));
+    row.querySelector("[data-rm]").onclick = () => {
+      if (editor.slots.length === 1) return toast("A pattern needs at least one color", true);
+      editor.slots.splice(i, 1); editor.sel = Math.min(editor.sel, editor.slots.length - 1); markDirty(); renderSlots();
+    };
+  });
+  $("#addSlot").hidden = editor.slots.length >= 30;
+  renderPalette();
+}
+$("#addSlot").onclick = () => {
+  if (editor.slots.length >= 30) return toast("Up to 30 colors", true);
+  editor.slots.push({ color: editor.slots[editor.sel]?.color || "#ffffff", count: 5 });
+  editor.sel = editor.slots.length - 1; markDirty(); renderSlots();
+};
+
+function renderOverlaySeg() {
+  document.querySelectorAll("#patOverlay [data-ov]").forEach(b =>
+    b.classList.toggle("on", (b.dataset.ov === "" ? null : Number(b.dataset.ov)) === editor.overlay));
+}
+
+function renderEditorStatus() {
+  const isNew = editor.id == null, name = $("#patName").value.trim();
+  $("#patEyebrow").textContent = isNew ? "New pattern" : "Editing pattern";
+  $("#patStatus").className = "pstatus" + (editor.dirty ? " dirty" : isNew ? " new" : "");
+  $("#patStatus span").textContent = editor.dirty ? "Unsaved changes" : isNew ? "Not saved yet" : "Saved on controller";
+  $("#patBarMsg").innerHTML = editor.dirty ? `<b>Unsaved changes</b>${name ? " to “" + esc(name) + "”" : ""}`
+    : isNew ? "Build your pattern, then save it to the controller." : "No changes";
+  $("#patCancel").disabled = !editor.dirty;
+  $("#patSave").disabled = isNew || !editor.dirty;
+  $("#patDelete").hidden = isNew;
+  const mode = Number($("#cmode").value);
+  $("#patModeTag").textContent = catalog.custom[mode] || `Mode ${mode}`;
+  $("#motionNote").textContent = mode >= catalog.custom.length ? "Made in the Trimlight phone app. Keep it, or pick another animation." : "";
+}
+
+function markDirty() { editor.dirty = true; renderEditorStatus(); }
+
+function setModeOptions(mode) {
+  const sel = $("#cmode");
+  sel.innerHTML = MOTION_GROUPS.map(([name, ids]) =>
+    `<optgroup label="${name}">${ids.map(m => `<option value="${m}">${esc(catalog.custom[m] || "Mode " + m)}</option>`).join("")}</optgroup>`).join("")
+    // Patterns made in the phone app can use a mode outside the 17; keep it so saving doesn't change it.
+    + (mode >= catalog.custom.length ? `<optgroup label="From the Trimlight app"><option value="${mode}">Mode ${mode}</option></optgroup>` : "");
+  sel.value = mode;
+}
+
+function setSlider(id, value) {
+  const el = $(id); el.value = value;
+  el.style.setProperty("--p", (value / 255 * 100) + "%");
+  $(id === "#cbright" ? "#cbv" : "#csv").textContent = id === "#cbright" ? Math.round(value / 255 * 100) + "%" : value;
+}
+["#cbright", "#cspeed"].forEach(id => $(id).addEventListener("input", () => { setSlider(id, Number($(id).value)); markDirty(); }));
+
+function loadPattern(id) {
+  const e = id == null ? null : effectById(id);
+  const src = e ? {
+    id: e.id, name: e.name, mode: e.mode, speed: e.speed, brightness: e.brightness, overlay: overlayOf(e.id),
+    slots: (e.pixels || []).filter(p => !p.disable && p.count > 0).sort((a, b) => a.index - b.index)
+                           .map(p => ({ color: hex(p.color), count: p.count })),
+  } : JSON.parse(JSON.stringify(NEW_PATTERN));
+  if (!src.slots.length) src.slots = [{ color: "#ffffff", count: 5 }];
+  editor = { id: src.id, slots: src.slots, sel: 0, overlay: src.overlay, savedOverlay: src.overlay, dirty: false };
+  $("#patName").value = src.name;
+  setModeOptions(src.mode);
+  setSlider("#cbright", src.brightness);
+  setSlider("#cspeed", src.speed);
+  editor.festival = e ? festivalOf(e)?.id ?? null : (festFilter !== "all" && festFilter !== "none" ? festFilter : null);
+  renderSlots(); renderOverlaySeg(); renderEditorStatus(); renderSwitcher(); renderEditorFestival();
+}
+
+async function savePattern(asNew) {
+  const name = $("#patName").value.trim();
+  if (!name) { $("#patName").focus(); throw new Error("Give the pattern a name"); }
+  if (asNew && effects().some(e => e.name.toLowerCase() === name.toLowerCase()) &&
+      !confirm(`A pattern named “${name}” already exists. Create another one with the same name?`)) throw new Error("Cancelled");
+  const body = {
+    id: asNew ? null : editor.id, name, mode: Number($("#cmode").value),
+    speed: Number($("#cspeed").value), brightness: Number($("#cbright").value),
+    pixels: editor.slots.map(s => ({ color: unhex(s.color), count: s.count })),
+  };
+  if (asNew ? editor.overlay !== null : editor.overlay !== editor.savedOverlay) body.overlay = editor.overlay;
+  const { id } = await dev("/effect/save", body);
+  // A new pattern (or a copy) takes the festival shown in the editor; renames keep the label in step on the server.
+  if (editor.festival && (asNew || festivalOf(effectById(editor.id) || {})?.id !== editor.festival)) {
+    await assignFestival([{ id, name }], editor.festival, true);
+  }
+  await loadDevice(true);
+  loadPattern(id);
+}
+
+$("#patName").oninput = markDirty;
+$("#cmode").onchange = markDirty;
+document.querySelectorAll("#patOverlay [data-ov]").forEach(b => b.onclick = () => {
+  editor.overlay = b.dataset.ov === "" ? null : Number(b.dataset.ov); markDirty(); renderOverlaySeg();
+});
+// Cancel: drop unsaved edits and go back to the saved version (or a blank new pattern).
+$("#patCancel").onclick = () => {
+  if (!editor.dirty) return;
+  const what = editor.id == null ? "this new pattern" : `your changes to “${effectById(editor.id)?.name ?? "this pattern"}”`;
+  if (!confirm(`Discard ${what}? Nothing will be saved to the controller.`)) return;
+  const from = editor.from;
+  loadPattern(editor.id);
+  toast(editor.id == null ? "New pattern discarded" : "Changes discarded");
+  if (from === "library") { showTab("library"); window.scrollTo(0, 0); }
+};
+$("#patSave").onclick = () => act($("#patSave"), () => savePattern(false), "Pattern saved");
+$("#patDelete").onclick = () => { const e = effectById(editor.id); if (e) deleteEffect(e, $("#patDelete")); };
+$("#patCreate").onclick = () => act($("#patCreate"), () => savePattern(true), "New pattern created");
+
+/* Preview: the pattern running along a house roofline, drawn the way each animation moves. */
+const scene = { cv: $("#patCanvas"), bulbs: [], flakes: [], flash: 0, nextFlash: 2, w: 0, h: 0 };
+function layoutScene() {
+  const r = scene.cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (!r.width) return;
+  scene.w = r.width; scene.h = r.height;
+  scene.cv.width = r.width * dpr; scene.cv.height = r.height * dpr;
+  scene.cv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Garage roof, then the main gable, as one continuous run of bulbs.
+  const pts = [[.06, .62], [.06, .5], [.26, .5], [.3, .44], [.55, .16], [.86, .44], [.86, .62]].map(([x, y]) => [x * r.width, y * r.height]);
+  const segs = []; let len = 0;
+  for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push([pts[i - 1], pts[i], l]); len += l; }
+  const n = Math.max(60, Math.round(len / 9));
+  scene.bulbs = [];
+  for (let k = 0; k < n; k++) {
+    let d = k / (n - 1) * len;
+    for (const [a, b, l] of segs) { if (d <= l) { scene.bulbs.push([a[0] + (b[0] - a[0]) * d / l, a[1] + (b[1] - a[1]) * d / l]); break; } d -= l; }
+  }
+  scene.pts = pts;
+  scene.flakes = Array.from({ length: 90 }, () => [Math.random() * r.width, Math.random() * r.height, .6 + Math.random() * 1.8, .3 + Math.random() * .7]);
+}
+const rgbOf = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const noise = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+
+function bulbColor(seq, i, n, t, m, speed) {
+  const L = seq.length, off = Math.floor(t * (2 + speed / 255 * 22)), d = Math.round(Math.abs(i - (n - 1) / 2));
+  const fam = m >= 1 && m <= 4 ? 1 : m >= 7 && m <= 10 ? 7 : m >= 11 && m <= 14 ? 11 : 0;
+  const dir = fam ? m - fam : 0;  // 0 forward, 1 backward, 2 middle to out, 3 out to middle
+  const pos = !fam ? i : dir === 0 ? i - off : dir === 1 ? i + off : dir === 2 ? d - off : d + off;
+  let c = seq[((pos % L) + L) % L], k = 1;
+  if (fam === 7) k = Math.pow((((pos % 14) + 14) % 14) / 13, 1.6);
+  else if (fam === 11) k = .25 + .75 * (.5 + .5 * Math.sin(pos / 4));
+  else if (m === 5) { const s = noise(i, Math.floor(t * (1 + speed / 60))); k = s > .82 ? 1 : .12 + s * .25; }
+  else if (m === 6) k = .12 + .88 * (.5 + .5 * Math.sin(t * (.6 + speed / 70)));
+  else if (m === 15) k = Math.floor(t * (3 + speed / 25)) % 2 ? 1 : .04;
+  else if (m === 16) {
+    const cols = editor.slots.map(s => rgbOf(s.color)), p = t * (.2 + speed / 200), a = Math.floor(p) % cols.length, f = p % 1, b = cols[(a + 1) % cols.length];
+    c = cols[a].map((v, j) => v + (b[j] - v) * f);
+  }
+  return c.map(v => v * k);
+}
+
+function drawScene(ms) {
+  requestAnimationFrame(drawScene);
+  if (!$("#tab-colors").classList.contains("active") || !editor) return;  // only animate while visible
+  if (!scene.w || scene.cv.getBoundingClientRect().width !== scene.w) layoutScene();
+  if (!scene.w) return;
+  const ctx = scene.cv.getContext("2d"), { w: W, h: H, pts } = scene, t = ms / 1000;
+  const seq = []; editor.slots.forEach(s => { const c = rgbOf(s.color); for (let j = 0; j < Math.min(s.count, 60); j++) seq.push(c); });
+  const m = Number($("#cmode").value), speed = Number($("#cspeed").value), bright = Number($("#cbright").value) / 255;
+  ctx.clearRect(0, 0, W, H);
+  if (editor.overlay === 0 && t > scene.nextFlash) { scene.flash = 1; scene.nextFlash = t + 1.5 + Math.random() * 3.5; }
+  if (scene.flash > 0) { ctx.fillStyle = `rgba(200,210,255,${scene.flash * .35})`; ctx.fillRect(0, 0, W, H); scene.flash = Math.max(0, scene.flash - .06); }
+  ctx.fillStyle = "#0b0e1c"; ctx.beginPath(); ctx.moveTo(pts[0][0], H); pts.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(pts[pts.length - 1][0], H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#06070d"; ctx.fillRect(0, H * .9, W, H * .1);
+  ctx.fillStyle = "rgba(255,190,90,.18)"; [[.42, .52], [.62, .52], [.52, .3]].forEach(([x, y]) => ctx.fillRect(x * W, y * H, W * .07, H * .1));
+  ctx.fillStyle = "rgba(255,255,255,.05)"; ctx.fillRect(W * .1, H * .64, W * .14, H * .26);
+  ctx.globalCompositeOperation = "lighter";
+  scene.bulbs.forEach(([x, y], i) => {
+    let [r, g, b] = bulbColor(seq, i, scene.bulbs.length, t, m, speed).map(v => v * bright);
+    if (scene.flash > .5) [r, g, b] = [255, 255, 255];
+    if (r + g + b < 6) { ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.fill(); return; }
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, 13);
+    glow.addColorStop(0, `rgba(${r | 0},${g | 0},${b | 0},.55)`); glow.addColorStop(1, `rgba(${r | 0},${g | 0},${b | 0},0)`);
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill();
+    ctx.fillStyle = `rgb(${Math.min(255, r + 60) | 0},${Math.min(255, g + 60) | 0},${Math.min(255, b + 60) | 0})`;
+    ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
+  });
+  ctx.globalCompositeOperation = "source-over";
+  if (editor.overlay === 1) {
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    scene.flakes.forEach(f => { f[1] += f[3]; f[0] += Math.sin((t + f[2]) * 1.3) * .3; if (f[1] > H) { f[1] = -4; f[0] = Math.random() * W; }
+      ctx.beginPath(); ctx.arc(f[0], f[1], f[2], 0, 7); ctx.fill(); });
+  }
+}
+requestAnimationFrame(drawScene);
+
+/* ---------- Festivals (labels stored on this computer) ---------- */
+let festivals = [], festLabels = {};
+const FEST_EMOJIS = ["🎉", "🎆", "❤️", "☘️", "🐣", "💐", "🎖️", "🎇", "🍁", "🌼", "🪔", "🎃", "🦃", "🎄", "🎂", "✨", "🧧", "🌙", "🕎", "💍", "🏈", "⚽", "🌸", "☀️", "❄️", "🎓"];
+const FEST_COLORS = ["#e11d48", "#f97316", "#eab308", "#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#db2777", "#b45309", "#64748b"];
+// First-guess rules for "Auto-group": pattern name → festival id (only fills patterns with no festival yet).
+const FEST_RULES = [["halloween", /h[ao]ll?o?ween|bats|demon|candy ?corn|witch|blood|hellfire|spook|ghost|pumpkin/i],
+  ["diwali", /diwali|diya|rangoli|anaar|deepavali/i], ["durga", /durga|^dp\b|^dp-/i], ["christmas", /christmas|xmas|santa|snow|charlie brown/i],
+  ["newyear", /new ?year|jan-feb/i], ["valentine", /valentine|v-?day/i], ["stpatrick", /patrick/i], ["easter", /easter/i],
+  ["mothers", /mother/i], ["memorial", /memorial|police|cop week/i], ["independence", /independence|american|july|4th/i],
+  ["canada", /canada/i], ["thanksgiving", /thanksgiving|fall/i], ["birthday", /birthday/i], ["everyday", /default/i]];
+
+const festivalById = (id) => festivals.find(f => f.id === id);
+// A label counts only while the pattern keeps the name it had when labelled (ids get reused after deletes).
+function festivalOf(e) {
+  const l = e && festLabels[e.id];
+  return l && l.name === e.name ? festivalById(l.festival) || null : null;
+}
+function inSeason(f) {
+  if (!f.start || !f.end) return false;
+  const d = new Date(), md = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return f.start <= f.end ? f.start <= md && md <= f.end : md >= f.start || md <= f.end;  // seasons can span New Year
+}
+const festivalsSorted = () => [...festivals].sort((a, b) => inSeason(b) - inSeason(a));
+const festPill = (f, id) => f
+  ? `<button class="fpill" data-fest="${id}" style="color:${f.color}" title="${esc(f.name)}"><i style="background:${f.color}"></i>${esc(f.emoji)}<span class="t"> ${esc(f.name)}</span></button>`
+  : `<button class="fpill none" data-fest="${id}" title="Add festival">+<span class="t"> Add festival</span></button>`;
+
+async function loadFestivals() {
+  if (!deviceId) return;
+  try {
+    const res = await dev("/festivals");
+    festivals = res.festivals; festLabels = res.patterns;
+  } catch (e) { toast("Couldn’t load festivals: " + e.message, true); }
+  renderSwitcher(); renderEditorFestival();
+}
+
+async function assignFestival(patterns, festivalId, quiet) {
+  await dev("/festivals/assign", { patterns: patterns.map(p => ({ id: p.id, name: p.name })), festival: festivalId });
+  const res = await dev("/festivals");
+  festivals = res.festivals; festLabels = res.patterns;
+  if (!quiet) {
+    const f = festivalById(festivalId);
+    toast(`${patterns.length === 1 ? "“" + patterns[0].name + "”" : patterns.length + " patterns"} → ${f ? f.emoji + " " + f.name : "no festival"}`);
+  }
+  renderSwitcher(); renderEditorFestival();
+}
+
+function closeFestivalMenu() { document.querySelector(".fmenu")?.remove(); }
+function openFestivalMenu(anchor, patterns, onPick) {
+  closeFestivalMenu();
+  const cur = patterns.length === 1 ? festivalOf(patterns[0])?.id ?? null : undefined;
+  const m = document.createElement("div");
+  m.className = "fmenu";
+  m.innerHTML = festivalsSorted().map(f => `<button data-to="${esc(f.id)}" class="${cur === f.id ? "cur" : ""}">${esc(f.emoji)} ${esc(f.name)}</button>`).join("") +
+    `<hr><button data-to="" class="${cur === null ? "cur" : ""}">No festival</button><button class="add" data-to="+">+ New festival…</button>`;
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + "px";
+  m.style.top = (r.bottom + m.offsetHeight + 8 > innerHeight ? Math.max(8, r.top - m.offsetHeight - 6) : r.bottom + 6) + "px";
+  m.querySelectorAll("[data-to]").forEach(b => b.onclick = (ev) => {
+    ev.stopPropagation(); closeFestivalMenu();
+    const to = b.dataset.to;
+    const apply = (fid) => onPick ? onPick(fid)
+      : act(null, async () => { await assignFestival(patterns, fid); if (patterns.length > 1) { picked.clear(); selectMode = false; } renderSwitcher(); }, null);
+    if (to === "+") return openFestivalSheet(null, (f) => apply(f.id));
+    apply(to || null);
+  });
+  setTimeout(() => document.addEventListener("click", closeFestivalMenu, { once: true }));
+}
+
+function renderEditorFestival() {
+  if (!editor) return;
+  // A saved pattern shows its stored label; a new one shows the festival it will get when saved.
+  if (editor.id != null && effectById(editor.id)) editor.festival = festivalOf(effectById(editor.id))?.id ?? null;
+  const f = festivalById(editor.festival);
+  $("#patFestival").innerHTML = festPill(f || null, "editor");
+  $("#patFestival [data-fest]").onclick = (ev) => {
+    ev.stopPropagation();
+    const e = editor.id != null ? effectById(editor.id) : null;
+    if (e) return openFestivalMenu(ev.currentTarget, [e]);   // saved pattern: label it straight away
+    openFestivalMenu(ev.currentTarget, [], (fid) => { editor.festival = fid; renderEditorFestival(); });  // applied on save
+  };
+}
+
+function openFestivalSheet(existing, onCreated) {
+  const draft = existing ? { ...existing } : { name: "", emoji: "🎉", color: "#7c3aed", start: "", end: "" };
+  const toDate = (md) => md ? `2024-${md}` : "";
+  const draw = () => {
+    showSheet(`
+      <div class="sheet-top"><span></span><button class="link" data-close>Close</button></div>
+      <h3 class="sheet-title" id="sheetTitle">${existing ? "Edit festival" : "New festival"}</h3>
+      <label for="fName">Name</label><input type="text" id="fName" maxlength="32" placeholder="e.g. Lunar New Year">
+      <label>Icon</label><div class="emoji-pick">${FEST_EMOJIS.map(e => `<button data-e="${e}" class="${e === draft.emoji ? "on" : ""}">${e}</button>`).join("")}</div>
+      <label>Color</label><div class="color-pick">${FEST_COLORS.map(c => `<button data-c="${c}" class="${c === draft.color ? "on" : ""}" style="background:${c}" aria-label="${c}"></button>`).join("")}</div>
+      <label>Season <span class="sub">· optional; the festival is listed first while it's in season</span></label>
+      <div class="grid-2"><input type="date" id="fStart" aria-label="Season starts"><input type="date" id="fEnd" aria-label="Season ends"></div>
+      <div class="sheet-actions"><button class="link" data-close>Cancel</button><span class="spacer"></span>
+        <button class="btn primary" id="fSave">${existing ? "Save" : "Create festival"}</button></div>`);
+    $("#fName").value = draft.name; $("#fStart").value = toDate(draft.start); $("#fEnd").value = toDate(draft.end);
+    const keep = () => { draft.name = $("#fName").value; draft.start = $("#fStart").value.slice(5); draft.end = $("#fEnd").value.slice(5); };
+    $("#sheetBody").querySelectorAll("[data-e]").forEach(b => b.onclick = () => { keep(); draft.emoji = b.dataset.e; draw(); });
+    $("#sheetBody").querySelectorAll("[data-c]").forEach(b => b.onclick = () => { keep(); draft.color = b.dataset.c; draw(); });
+    $("#fSave").onclick = () => act($("#fSave"), async () => {
+      keep();
+      if (!draft.name.trim()) { $("#fName").focus(); throw new Error("Give the festival a name"); }
+      if (!!draft.start !== !!draft.end) throw new Error("Set both season dates, or neither");
+      const saved = await api("/api/festivals", { festival: { id: existing?.id, name: draft.name, emoji: draft.emoji, color: draft.color, start: draft.start, end: draft.end } });
+      sheet.close();
+      await loadFestivals();
+      if (onCreated) onCreated(saved);
+    }, existing ? "Festival saved" : "Festival created");
+    $("#fName").focus();
+  };
+  draw();
+}
+
+function openFestivalManager() {
+  const all = customEffects();
+  const count = (id) => all.filter(e => festivalOf(e)?.id === id).length;
+  showSheet(`
+    <div class="sheet-top"><span></span><button class="link" data-close>Close</button></div>
+    <h3 class="sheet-title" id="sheetTitle">Festivals</h3>
+    <p class="hint" style="text-align:center;margin-bottom:8px">Labels for organizing patterns. Saved on this computer; they don't change the patterns.</p>
+    <div>${festivalsSorted().map(f => `<div class="fest-row"><span style="font-size:18px">${esc(f.emoji)}</span>
+      <div class="grow"><b style="color:${f.color}">${esc(f.name)}</b><div class="hint">${count(f.id)} pattern${count(f.id) === 1 ? "" : "s"}${f.start ? ` · season ${f.start} to ${f.end}` : ""}${inSeason(f) ? " · in season" : ""}</div></div>
+      <button class="btn sm" data-edit="${esc(f.id)}">Edit</button>
+      <button class="icon-btn danger" data-delf="${esc(f.id)}" aria-label="Delete ${esc(f.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>`).join("") || '<p class="hint">No festivals yet.</p>'}</div>
+    <div class="sheet-actions"><button class="btn" id="fAuto" title="Give patterns with no festival a first guess from their names">Auto-group by name</button><span class="spacer"></span>
+      <button class="btn primary" id="fNew">+ New festival</button></div>`);
+  $("#sheetBody").querySelectorAll("[data-edit]").forEach(b => b.onclick = () => openFestivalSheet(festivalById(b.dataset.edit)));
+  $("#sheetBody").querySelectorAll("[data-delf]").forEach(b => b.onclick = () => {
+    const f = festivalById(b.dataset.delf), n = count(f.id);
+    if (!confirm(`Delete the festival “${f.name}”?${n ? ` Its ${n} pattern${n === 1 ? "" : "s"} will have no festival (the patterns themselves stay).` : ""}`)) return;
+    act(b, async () => { await api("/api/festivals/delete", { id: f.id }); await loadFestivals(); openFestivalManager(); }, "Festival deleted");
+  });
+  $("#fNew").onclick = () => openFestivalSheet(null, () => openFestivalManager());
+  $("#fAuto").onclick = () => act($("#fAuto"), async () => {
+    const plan = {};
+    for (const e of all) {
+      if (festivalOf(e)) continue;
+      const rule = FEST_RULES.find(([fid, re]) => festivalById(fid) && re.test(e.name));
+      if (rule) (plan[rule[0]] = plan[rule[0]] || []).push(e);
+    }
+    const total = Object.values(plan).reduce((n, es) => n + es.length, 0);
+    if (!total) throw new Error("No unlabelled pattern names matched a festival");
+    if (!confirm(`Give ${total} pattern${total === 1 ? "" : "s"} with no festival a first guess from their names? You can change any of them afterwards.`)) return;
+    for (const [fid, es] of Object.entries(plan)) await assignFestival(es, fid, true);
+    openFestivalManager();
+    toast(`Grouped ${total} pattern${total === 1 ? "" : "s"}`);
+  }, null);
+}
+
+/* ---------- Effects ---------- */
+function renderBuiltins() {
+  const q = $("#bsearch").value.trim().toLowerCase();
+  const sel = $("#bmode"); const prev = sel.value;
+  sel.innerHTML = "";
+  catalog.builtin.forEach((name, i) => { if (!q || name.toLowerCase().includes(q)) sel.add(new Option(`${i} · ${name}`, i)); });
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev; else if (sel.options.length) sel.selectedIndex = 0;
+}
+
+function bindRange(input, label) { const f = () => $(label).textContent = $(input).value; $(input).oninput = f; f(); }
+
+$("#bsearch").oninput = renderBuiltins;
+$("#esearch").oninput = renderLibrary;
+$("#customGo").onclick = () => act($("#customGo"), async () => {
+  const pixels = editor.slots.map(s => ({ color: unhex(s.color), count: s.count }));
+  await dev("/preview", { category: 1, mode: Number($("#cmode").value), brightness: Number($("#cbright").value),
+                          speed: Number($("#cspeed").value), pixels });
+  await loadDevice(true);
+}, "Pattern previewing");
+$("#builtinGo").onclick = () => act($("#builtinGo"), async () => {
+  if ($("#bmode").value === "") throw new Error("Pick an effect");
+  await dev("/preview", { category: 0, mode: Number($("#bmode").value), brightness: Number($("#bbright").value),
+                          speed: Number($("#bspeed").value), pixelLen: Number($("#blen").value), reverse: $("#brev").checked });
+  await loadDevice(true);
+}, "Effect previewing");
+
+document.querySelectorAll("[data-state]").forEach(b => b.onclick = () =>
+  act(b, async () => { await dev("/switch", { state: Number(b.dataset.state) }); await loadDevice(true); }, `Set to ${SWITCH[b.dataset.state]}`));
+$("#reload").onclick = () => act($("#reload"), async () => {
+  if (!await loadDevice(false, true)) throw new Error("Couldn’t refresh");
+  loadBackup(); loadGroups();
+}, "Refreshed from the controller");
+
+
+/* ---------- Device ---------- */
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+let hwDirty = false;
+
+// The controller doesn't say which saved pattern is running, so match on what it's playing.
+function nowPlaying() {
+  const ce = device?.currentEffect;
+  if (!ce) return "Nothing reported";
+  if (ce.category === 0 && !(ce.id >= 0)) return `${catalog.builtin[ce.mode] || "Built-in " + ce.mode} (built-in)`;
+  const match = playingEffect();
+  return match ? match.name : device.switchState === 0 ? "Lights off" : "Unsaved preview";
+}
+
+function clockText(dt) {
+  if (!dt) return { text: "Not reported", drift: null };
+  const d = new Date(2000 + dt.year, dt.month - 1, dt.day, dt.hours, dt.minutes, dt.seconds);
+  const text = `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${fmt12(dt)}`;
+  return { text, drift: Math.round(Math.abs(Date.now() - d.getTime()) / 60000) };
+}
+
+function renderDevice() {
+  if (!device) return;
+  const clock = clockText(device.currentDatetime);
+  const online = device.connectivity === 1;
+  const driftTag = clock.drift === null ? "" : clock.drift <= 2
+    ? '<span class="tag ok">In sync</span>' : `<span class="tag warn">Off by ${clock.drift} min</span>`;
+  $("#devInfo").innerHTML = `
+    <dt>Name</dt><dd><input type="text" id="devName" maxlength="32" aria-label="Controller name"><button class="btn sm" id="devRename">Rename</button></dd>
+    <dt>Status</dt><dd><span class="tag ${online ? "ok" : ""}">${online ? "Online" : "Offline"}</span>${device.state === 1 ? '<span class="tag warn">Updating firmware</span>' : ""}</dd>
+    <dt>Power mode</dt><dd>${SWITCH[device.switchState] ?? "Unknown"}</dd>
+    <dt>Now playing</dt><dd>${esc(nowPlaying())}</dd>
+    <dt>Patterns stored</dt><dd>${effects().length} of 60</dd>
+    <dt>Controller clock</dt><dd>${esc(clock.text)} ${driftTag}<button class="btn sm" id="devClock" title="Set the controller clock to this computer's time">Sync clock</button></dd>
+    <dt>Firmware</dt><dd>${esc(device.fwVersionName || "Unknown")}</dd>
+    <dt>Controller ID</dt><dd><code style="word-break:break-all">${esc(deviceId)}</code></dd>`;
+  $("#devName").value = device.name || "";
+  renderAccount();
+  $("#devRename").onclick = () => act($("#devRename"), async () => {
+    const name = $("#devName").value.trim();
+    if (!name) throw new Error("Give the controller a name");
+    if (name === device.name) throw new Error("That's already its name");
+    await dev("/settings", { name });
+    const opt = $("#device").selectedOptions[0]; if (opt) opt.text = name;
+    await loadDevice(true);
+  }, "Controller renamed");
+  $("#devClock").onclick = () => {
+    if (!confirm("Set the controller clock to this computer's time? Schedules use this clock.")) return;
+    act($("#devClock"), async () => { await dev("/datetime", {}); await loadDevice(true, true); }, "Clock synced");
+  };
+  renderHardware();
+}
+
+function renderHardware() {
+  if (hwDirty) return;  // keep unsaved edits across refreshes
+  $("#hwOrder").value = device.colorOrder ?? 0;
+  $("#hwIc").value = device.ic ?? 0;
+  $("#hwPorts").innerHTML = (device.ports || []).map((p, i) => `
+    <tr data-id="${p.id}"><td>Port ${i + 1}</td>
+      <td><input type="number" min="1" max="2048" value="${p.start}" aria-label="Port ${i + 1} start pixel"></td>
+      <td><input type="number" min="1" max="2048" value="${p.end}" aria-label="Port ${i + 1} end pixel"></td></tr>`).join("")
+    || '<tr><td colspan="3" class="hint">The controller didn’t report its ports.</td></tr>';
+}
+$("#hwCard").addEventListener("input", () => { hwDirty = true; });
+$("#hwSave").onclick = () => {
+  const ports = [...$("#hwPorts").querySelectorAll("tr[data-id]")].map(tr => {
+    const [start, end] = [...tr.querySelectorAll("input")].map(i => Number(i.value));
+    return { id: Number(tr.dataset.id), start, end };
+  });
+  const body = { colorOrder: Number($("#hwOrder").value), ic: Number($("#hwIc").value), ports };
+  const changed = body.colorOrder !== device.colorOrder || body.ic !== device.ic ||
+                  JSON.stringify(ports) !== JSON.stringify(device.ports);
+  if (!changed) return toast("Nothing changed");
+  if (ports.some(p => !(p.start >= 1 && p.end <= 2048 && p.start <= p.end))) return toast("Each port needs a start pixel at or before its end (1–2048)", true);
+  if (!confirm("Save the new hardware setup? If it doesn't match your lights, colors will be wrong or the lights may go dark until it's changed back.")) return;
+  act($("#hwSave"), async () => { await dev("/settings", body); hwDirty = false; await loadDevice(true); }, "Hardware setup saved");
+};
+
+async function loadBackup() {
+  backup = undefined; renderBackup();
+  try { backup = await dev("/backup"); } catch { backup = null; }
+  renderBackup();
+}
+
+function renderBackup() {
+  const has = backup && backup.backupTime;
+  $("#backupInfo").innerHTML = backup === undefined ? '<dt>Latest backup</dt><dd class="hint">Loading…</dd>'
+    : backup === null ? '<dt>Latest backup</dt><dd class="hint">Couldn’t load backup details.</dd>'
+    : `<dt>Latest backup</dt><dd>${has ? esc(backup.backupTime) : "No backup yet"}</dd>`;
+  $("#restoreNow").disabled = !has;
+}
+$("#backupNow").onclick = () => {
+  const prev = backup?.backupTime ? `\n\nThis replaces the backup from ${backup.backupTime}.` : "";
+  if (!confirm("Back up this controller's patterns and schedules to the Trimlight cloud?" + prev)) return;
+  act($("#backupNow"), async () => { await dev("/backup", {}); await loadBackup(); }, "Backup saved");
+};
+$("#restoreNow").onclick = () => {
+  if (!backup?.backupTime) return;
+  const typed = prompt(`Restoring replaces ALL patterns, the rotation and schedules on “${device?.name}” with the backup from ${backup.backupTime}. Anything created since then is lost.\n\nType RESTORE to continue.`);
+  if (typed === null) return;
+  if (typed.trim().toUpperCase() !== "RESTORE") return toast("Restore cancelled", true);
+  act($("#restoreNow"), async () => {
+    await dev("/restore", { backupTime: backup.backupTime });
+    await loadDevice(true, true);
+  }, "Restore sent. The controller may take a minute to finish");
+};
+
+/* ---------- Trimlight account ---------- */
+let acctCheck = null;  // last "Test connection" result
+function renderAccount() {
+  const hint = window.__clientHint || "";
+  $("#acctInfo").innerHTML = `
+    <dt>Status</dt><dd>${device ? '<span class="tag ok">Connected</span>' : '<span class="tag warn">Credentials saved, not connected yet</span><span class="hint">use Test connection</span>'}</dd>
+    <dt>Client ID</dt><dd><code>••••••••${esc(hint)}</code><span class="hint">only the last 4 characters are shown</span></dd>
+    <dt>Client Secret</dt><dd><code>••••••••••••</code><span class="hint">never shown or sent to this page</span></dd>
+    <dt>Controllers</dt><dd>${devicesList.length ? devicesList.map(d => `${esc(d.name)}${d.connectivity === 1 ? "" : " (offline)"}`).join(", ") : "None found"}</dd>
+    <dt>Saved in</dt><dd><code>.env</code><span class="hint">in the app's folder, on this computer only</span></dd>`;
+}
+$("#acctTest").onclick = () => act($("#acctTest"), async () => {
+  const res = await api("/api/setup/test", {});
+  const box = $("#acctResult"); box.hidden = false;
+  const time = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (res.ok) {
+    box.className = "acct-result ok";
+    box.textContent = `✓ Trimlight accepted the credentials at ${time}. Found ${res.devices.length} controller${res.devices.length === 1 ? "" : "s"}` +
+      (res.devices.length ? ": " + res.devices.map(d => d.name + (d.online ? " (online)" : " (offline)")).join(", ") : "") + ".";
+  } else {
+    box.className = "acct-result bad";
+    box.textContent = /rejected the credentials/.test(res.error)
+      ? "✗ Trimlight rejected these credentials. Get a new Client ID and Secret from Trimlight's credentials page, then use Change credentials."
+      : `✗ Couldn't reach Trimlight (${res.error}). Check your internet connection and try again in a minute.`;
+    throw new Error("Connection test failed");
+  }
+}, "Connection works");
+$("#acctChange").onclick = () => { showTab("home"); showSetup(true, true); $("#setupCard").scrollIntoView({ block: "start" }); };
+$("#acctDisconnect").onclick = () => {
+  if (!confirm("Disconnect this app from your Trimlight account?\n\nYour Client ID and Client Secret will be removed from this computer. " +
+               "Your lights, patterns and schedules are not affected, and you can connect again any time with the same credentials.")) return;
+  act($("#acctDisconnect"), async () => {
+    await api("/api/setup/disconnect", {});
+    setTimeout(() => { location.hash = "home"; location.reload(); }, 800);
+  }, "Disconnected. Credentials removed from this computer");
+};
+
+/* ---------- Groups ---------- */
+const deviceName = (id) => devicesList.find(d => d.deviceId === id)?.name || id.slice(0, 8) + "…";
+
+async function loadGroups() {
+  try { groups = (await api("/api/groups")).data || []; } catch (e) { groups = e; }
+  renderGroups();
+}
+
+function renderGroups() {
+  const box = $("#groupList");
+  $("#groupAdd").disabled = devicesList.length < 2;
+  if (groups === null) { box.innerHTML = '<p class="hint">Loading…</p>'; return; }
+  if (groups instanceof Error) { box.innerHTML = `<p class="hint">Couldn’t load groups: ${esc(groups.message)}</p>`; return; }
+  if (!groups.length) {
+    box.innerHTML = `<div class="empty">No groups yet.${devicesList.length < 2
+      ? " Groups need at least two controllers on your account. You have " + devicesList.length + "." : ""}</div>`;
+    return;
+  }
+  box.innerHTML = "";
+  for (const g of groups) {
+    const row = document.createElement("div");
+    row.className = "group-row";
+    const members = (g.devices || []).map(d => d.name || deviceName(d.deviceId));
+    row.innerHTML = `<div style="flex:1;min-width:160px"><div class="lib-name"></div>
+        <div class="hint">Master: ${esc(g.masterDevice?.name || "—")} · ${members.length} controller${members.length === 1 ? "" : "s"}</div></div>
+      <button class="btn sm" data-a="sync" title="Copy the master's data to the other controllers">Sync now</button>
+      <button class="btn sm" data-a="edit">Edit</button>
+      <button class="icon-btn danger" data-a="delete" title="Delete group" aria-label="Delete group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>`;
+    row.querySelector(".lib-name").textContent = g.name;
+    row.querySelector("[data-a=sync]").onclick = (ev) => {
+      if (!confirm(`Copy ${g.masterDevice?.name || "the master"}'s patterns and schedules to the other controllers in “${g.name}”?`)) return;
+      act(ev.target, () => api("/api/groups/sync", { groupId: g.groupId }), "Group sync started");
+    };
+    row.querySelector("[data-a=edit]").onclick = () => openGroupSheet(g);
+    row.querySelector("[data-a=delete]").onclick = (ev) => {
+      if (!confirm(`Delete the group “${g.name}”? The controllers keep their current patterns.`)) return;
+      act(ev.currentTarget, async () => { await api("/api/groups/delete", { groupId: g.groupId }); await loadGroups(); }, "Group deleted");
+    };
+    box.appendChild(row);
+  }
+}
+
+function openGroupSheet(g) {
+  const members = new Set((g?.devices || []).map(d => d.deviceId));
+  const master = g?.masterDevice?.deviceId || deviceId;
+  showSheet(`
+    <div class="sheet-top"><span></span><button class="link" data-close>Close</button></div>
+    <h3 class="sheet-title" id="sheetTitle">${g ? "Edit group" : "New group"}</h3>
+    <label for="gName">Name</label><input type="text" id="gName" maxlength="32" placeholder="e.g. Whole house">
+    <label for="gMaster">Master controller <span class="sub">· the others copy it</span></label><select id="gMaster"></select>
+    <label>Controllers in this group</label>
+    <div class="checks">${devicesList.map(d => `<label><input type="checkbox" value="${esc(d.deviceId)}" ${members.has(d.deviceId) || (!g && d.deviceId === master) ? "checked" : ""}> ${esc(d.name)}</label>`).join("")}</div>
+    <div class="sheet-actions"><button class="link" data-close>Cancel</button><span class="spacer"></span>
+      <button class="btn primary" id="gSave">${g ? "Save" : "Create group"}</button></div>`);
+  $("#gName").value = g?.name || "";
+  devicesList.forEach(d => $("#gMaster").add(new Option(d.name, d.deviceId)));
+  $("#gMaster").value = master;
+  $("#gSave").onclick = () => act($("#gSave"), async () => {
+    const name = $("#gName").value.trim();
+    if (!name) throw new Error("Give the group a name");
+    const body = { masterDevice: $("#gMaster").value,
+                   devices: [...$("#sheetBody").querySelectorAll(".checks input:checked")].map(i => i.value) };
+    if (g) {
+      await api("/api/groups/update", { groupId: g.groupId, ...body });
+      if (name !== g.name) await api("/api/groups/rename", { groupId: g.groupId, name });
+    } else {
+      await api("/api/groups", { name, ...body });
+    }
+    sheet.close();
+    await loadGroups();
+  }, g ? "Group saved" : "Group created");
+}
+$("#groupAdd").onclick = () => openGroupSheet(null);
+
+/* ---------- Home ---------- */
+const HERO_COLORS = ["#ff2a2a", "#ff8a00", "#ffd400", "#3dff6a", "#00d0ff", "#4a5bff", "#b44aff", "#ff3fa4"];
+$("#heroLeds").innerHTML = Array.from({ length: 28 }, (_, i) => `<i style="--c:${HERO_COLORS[i % HERO_COLORS.length]};--i:${i}"></i>`).join("");
+document.querySelectorAll("#homeTiles [data-go]").forEach(b => b.onclick = () => {
+  if (setupNeeded) return toast("Connect your Trimlight account first", true);
+  showTab(b.dataset.go); window.scrollTo(0, 0);
+});
+
+function renderHero() {
+  $("#heroCta").innerHTML = setupNeeded
+    ? '<button class="btn light" data-cta="setup">Get started</button>'
+    : '<button class="btn light" data-cta="colors">Design a pattern</button><button class="btn glass" data-cta="library">Open library</button><button class="btn glass" data-cta="schedule">Schedules</button>';
+  $("#heroCta").querySelectorAll("[data-cta]").forEach(b => b.onclick = (ev) => {
+    ev.preventDefault();
+    const t = b.dataset.cta;
+    if (t === "setup") return $("#setupCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    showTab(t); window.scrollTo(0, 0);
+  });
+}
+
+function showSetup(open, changing) {
+  $("#setupCard").hidden = !open;
+  $("#setupTitle").textContent = changing ? "Change API credentials" : "Connect your Trimlight account";
+  $("#setupCancel").hidden = !changing;
+  if (open) { $("#setupOk").hidden = true; $("#setupSecret").value = ""; }
+}
+$("#setupShow").onclick = () => {
+  const i = $("#setupSecret"); i.type = i.type === "password" ? "text" : "password";
+  $("#setupShow").textContent = i.type === "password" ? "Show" : "Hide";
+};
+$("#setupCancel").onclick = () => showSetup(false);
+$("#setupGo").onclick = () => act($("#setupGo"), async () => {
+  const clientId = $("#setupId").value.trim(), clientSecret = $("#setupSecret").value.trim();
+  if (!clientId || !clientSecret) throw new Error("Paste both the Client ID and the Client Secret");
+  const res = await api("/api/setup", { clientId, clientSecret });
+  $("#setupSecret").value = "";
+  $("#setupOk").hidden = false;
+  $("#setupOk").textContent = `✓ Connected. Found ${res.devices.length} controller${res.devices.length === 1 ? "" : "s"}${res.devices.length ? ": " + res.devices.join(", ") : ""}. Loading…`;
+  setTimeout(() => location.reload(), 1200);
+}, "Connected to Trimlight");
+
+function renderHome() {
+  renderHero();
+  if (!device) return;
+  $("#homeDash").hidden = false;
+  const online = device.connectivity === 1;
+  $("#homeCtlSub").textContent = `${device.name || "Controller"} · ${online ? "online" : "offline"}`;
+  const stat = (k, v) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`;
+  $("#homeStats").innerHTML =
+    stat("Power", SWITCH[device.switchState] ?? "Unknown") +
+    stat("Now playing", esc(nowPlaying())) +
+    stat("Patterns", `${effects().length} of 60`) +
+    stat("Rotation", `${device.combinedEffect?.effectIds?.length || 0} patterns · ${device.combinedEffect?.interval || "–"} min each`);
+  const now = new Date(), md = (now.getMonth() + 1) * 100 + now.getDate();
+  const cal = (device.calendar || []).filter(c => dateKey(c.startDate) <= md && md <= dateKey(c.endDate));
+  const daily = (device.daily || []).filter(d => d.enable);
+  const lines = cal.map(c => stat(`Calendar · ${fmt12(c.startTime)} – ${fmt12(c.endTime)}`, esc(effectName(c.effectId))))
+    .concat(daily.map(d => stat(`Daily ${d.id + 1} · ${fmt12(d.startTime)} – ${fmt12(d.endTime)}`, esc(effectName(d.effectId)))));
+  $("#homeTonight").innerHTML = (lines.join("") || '<p class="hint">No schedules are on.</p>') +
+    (device.switchState !== 2 ? `<p class="hint" style="margin-top:10px">Power is <b>${SWITCH[device.switchState]}</b>, so schedules are paused. Click <b>Schedule</b> in the header to resume them.</p>` : "");
+}
+
+/* ---------- Load ---------- */
+async function loadDevice(quiet, fresh) {
+  if (!deviceId) return;
+  try {
+    // fresh: nudge the controller to re-report first (slower, but picks up changes made elsewhere).
+    device = fresh ? await dev("/refresh", {}) : await api(`/api/device/${deviceId}`);
+    if (!rotationDirty) {
+      rotation = [...(device.combinedEffect?.effectIds || [])];
+      $("#rotInterval").value = device.combinedEffect?.interval || 5;
+    }
+    loadState = "ok";
+    renderStatus(); renderLibrary(); renderSchedule(); renderDevice(); renderHome();
+    // Refresh the pattern editor from the device unless the user is mid-edit.
+    if (!editor.dirty) loadPattern(editor.id);
+    patternOptions();
+    return true;
+  } catch (e) {
+    if (!device) { loadState = "error"; renderSchedule(); }
+    if (!quiet) toast(e.message, true);
+    return false;
+  }
+}
+
+async function init() {
+  const start = location.hash.slice(1) || "home";
+  showTab(document.getElementById("tab-" + start) ? start : "home");
+  if (location.protocol === "file:") {
+    $("main").insertAdjacentHTML("afterbegin", `<div class="card" style="border-color:var(--err)">
+      <strong>This copy was opened from disk, so it can’t reach your lights.</strong>
+      <p class="hint" style="margin-top:6px">Start the app with <code>python3 webapp.py</code> and open <a href="http://localhost:8765">http://localhost:8765</a>.</p></div>`);
+    loadState = "error"; renderSchedule();
+    return;
+  }
+
+  const setup = await api("/api/setup");
+  $("#applyLink").href = setup.applyUrl;
+  setupNeeded = !setup.configured;
+  window.__clientHint = setup.clientIdHint;
+  $("#acctApply").href = setup.applyUrl;
+  renderAccount();  // filled in now, so it's usable even if the controller never loads
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(b => b.setAttribute("aria-disabled", setupNeeded && b.dataset.tab !== "home"));
+  renderHero();
+  if (setupNeeded) {
+    showTab("home"); showSetup(true);
+    $("#device").hidden = true; $("#status").innerHTML = '<span class="st-text">Not connected</span>';
+    document.querySelector(".seg[aria-label=Power]").hidden = true; $("#reload").hidden = true;
+    return;
+  }
+
+  catalog = await api("/api/catalog");
+  catalog.colorOrders.forEach((n, i) => $("#hwOrder").add(new Option(n, i)));
+  catalog.ics.forEach((n, i) => $("#hwIc").add(new Option(n, i)));
+  renderBuiltins();
+  ["#bbright:#bbv", "#bspeed:#bsv", "#blen:#blv"].forEach(p => bindRange(...p.split(":")));
+  loadPattern(null);
+
+  try {
+    const { data } = await api("/api/devices");
+    const sel = $("#device");
+    devicesList = data;
+    data.forEach(d => sel.add(new Option(`${d.name}${d.connectivity === 1 ? "" : " (offline)"}`, d.deviceId)));
+    if (!data.length) { $("#library").innerHTML = '<p class="hint">No devices on this account.</p>'; return; }
+    const saved = store.get("trimlight.device");
+    if (data.some(d => d.deviceId === saved)) sel.value = saved;
+    deviceId = sel.value;
+    sel.onchange = () => { deviceId = sel.value; store.set("trimlight.device", deviceId); rotationDirty = false; picked.clear(); loadDevice(); loadBackup(); loadFestivals(); };
+    loadBackup(); loadGroups(); loadFestivals();
+    // The Trimlight cloud fails intermittently; retry the first load once before reporting it.
+    if (!await loadDevice(true)) { await new Promise(r => setTimeout(r, 2000)); await loadDevice(); }
+  } catch (e) {
+    toast(e.message, true);
+    renderAccount();
+    $("#library").innerHTML = `<p class="hint">${esc(e.message)}</p>`;
+    loadState = "error"; renderSchedule();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

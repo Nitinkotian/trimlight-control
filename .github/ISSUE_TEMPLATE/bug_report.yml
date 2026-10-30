@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in the app doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste your Client Secret, your `.env` file, or your controller ID here.**
+        Security problems go to the **Security** tab → *Report a vulnerability*, not a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: "I clicked Save changes on a pattern and…"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Colors tab
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "Chrome 130, Safari 18, Edge 130, Firefox 132…"
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Self-check output
+      description: Run `python3 webapp.py --check` (Windows `py -3 webapp.py --check`) and paste the result. It shows only the last 4 characters of your Client ID.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, browser console errors, or the terminal output when it happened. Remove any secrets first.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed any Client Secret, `.env` contents and controller IDs from this report.
+          required: true

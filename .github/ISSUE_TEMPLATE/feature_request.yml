@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an idea for the app.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: 'Describe the goal, not just the solution. Example: "Schedule a different pattern on weekends."'
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could the app help?
+      description: Your idea for how it could work. Sketches and screenshots are welcome.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you do it today?
+      description: For example, in the Trimlight phone app, or not at all.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Project fit
+      description: The app stays local-only and uses only Trimlight's official API (see CONTRIBUTING.md).
+      options:
+        - label: This idea works within those limits, or I've explained why it shouldn't.
+          required: true

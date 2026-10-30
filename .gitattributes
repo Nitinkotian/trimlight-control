@@ -1,0 +1,5 @@
+# Normalize line endings in the repository; check out with the endings each launcher needs.
+* text=auto
+*.bat text eol=crlf
+*.command text eol=lf
+*.py text eol=lf

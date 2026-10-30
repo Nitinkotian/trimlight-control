@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem (private)
+    url: https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/report-privately
+    about: Use this repository's Security tab → "Report a vulnerability". Please don't open a public issue.
+  - name: Problems with Trimlight's cloud, controller or phone app
+    url: https://trimlight.com/support
+    about: Issues with Trimlight's own products are best reported to Trimlight.

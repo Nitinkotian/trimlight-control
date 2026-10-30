@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only token, and no repository secrets are used: pull requests from forks can't reach anything sensitive.
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    name: ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+        python: ["3.8", "3.12", "3.13"]
+        exclude:
+          - os: macos-latest   # Apple-silicon runners have no Python 3.8 build
+            python: "3.8"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Compile
+        run: python -m py_compile trimlight.py webapp.py
+      - name: Offline tests (no network, no credentials)
+        run: python -m unittest discover tests -v
+      - name: Self-check runs without credentials
+        shell: bash
+        # Expected to report missing credentials (exit 1); this only checks it runs cleanly on every OS.
+        run: |
+          set +e
+          python webapp.py --check
+          code=$?
+          if [ $code -gt 1 ]; then echo "self-check crashed (exit $code)"; exit 1; fi
