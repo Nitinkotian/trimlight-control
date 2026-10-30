@@ -113,8 +113,12 @@ The app only listens on your own computer (`127.0.0.1`), so Windows Firewall won
 
 ### Download
 
-- **With Git:** `git clone <this repository's URL>`
-- **Without Git:** on the repository page, click **Code → Download ZIP**, then unzip it.
+- **With Git:**
+  ```bash
+  git clone https://github.com/Nitinkotian/trimlight-control.git
+  cd trimlight-control
+  ```
+- **Without Git:** on the [repository page](https://github.com/Nitinkotian/trimlight-control), click **Code → Download ZIP**, then unzip it.
 
 ### Setting credentials by hand (optional)
 
